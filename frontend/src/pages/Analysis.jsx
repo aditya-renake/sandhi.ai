@@ -28,7 +28,19 @@ export default function Analysis() {
   const [klProxy, setKlProxy] = useState(2) // KL Grade 2 proxy
   const [referralStatus, setReferralStatus] = useState("PHC Physiotherapy & Orthopedic Triage")
 
-  const currentLang = localStorage.getItem("sandhi_lang") || "en"
+  const [selectedLang, setSelectedLang] = useState(() => localStorage.getItem("sandhi_lang") || "en")
+
+  useEffect(() => {
+    const onLangChange = (e) => {
+      if (e.detail) {
+        setSelectedLang(e.detail)
+        const prompt = VOICE_PROMPTS[e.detail] || VOICE_PROMPTS.en
+        speakText(prompt.crepitusNotice, e.detail)
+      }
+    }
+    window.addEventListener("sandhi_language_changed", onLangChange)
+    return () => window.removeEventListener("sandhi_language_changed", onLangChange)
+  }, [])
 
   useEffect(() => {
     // Calculate composite risk based on passed biomechanical params
@@ -63,8 +75,8 @@ export default function Analysis() {
     }
 
     // Voice announcement
-    const prompt = VOICE_PROMPTS[currentLang] || VOICE_PROMPTS.en
-    speakText(prompt.crepitusNotice, currentLang)
+    const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
+    speakText(prompt.crepitusNotice, selectedLang)
 
     startWaveformAnimation()
 
@@ -240,14 +252,28 @@ export default function Analysis() {
                   </div>
                 </div>
 
-                <button
-                  onClick={playCrepitusSound}
-                  disabled={isPlayingAudio}
-                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-teal-400 hover:bg-slate-800 transition flex items-center gap-1.5 border border-slate-700"
-                >
-                  <span>{isPlayingAudio ? "🔊" : "▶"}</span>
-                  <span>{isPlayingAudio ? "Playing VAG Audio..." : "Auditory Crepitus Playback"}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
+                      speakText(prompt.crepitusNotice, selectedLang)
+                    }}
+                    className="rounded-lg bg-teal-900/40 px-3 py-1.5 text-xs font-semibold text-teal-300 hover:bg-teal-900/60 transition flex items-center gap-1.5 border border-teal-700/60 cursor-pointer"
+                    title="Hear diagnosis announcement in your language"
+                  >
+                    <span>🗣️</span>
+                    <span>Listen ({VOICE_PROMPTS[selectedLang]?.nativeName || "English"})</span>
+                  </button>
+
+                  <button
+                    onClick={playCrepitusSound}
+                    disabled={isPlayingAudio}
+                    className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-teal-400 hover:bg-slate-800 transition flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+                  >
+                    <span>{isPlayingAudio ? "🔊" : "▶"}</span>
+                    <span>{isPlayingAudio ? "Playing VAG Audio..." : "Auditory Crepitus Playback"}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Real-time Oscilloscope Canvas */}

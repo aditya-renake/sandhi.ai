@@ -1,9 +1,8 @@
-// High-Quality, Natural & Soothing Audio Guidance for Sandhi-AI
-// Uses premium human-like voice filtering, voice loading listeners, and gentle chime cues.
+// Comprehensive Multilingual Speech Engine for Sandhi-AI
+// Supports English, Hindi, Assamese, Bengali, Mizo, and Manipuri with warm, soothing delivery.
 
 let cachedVoices = []
 
-// Pre-load voices on browser ready
 if (typeof window !== "undefined" && "speechSynthesis" in window) {
   cachedVoices = window.speechSynthesis.getVoices()
   window.speechSynthesis.onvoiceschanged = () => {
@@ -13,15 +12,17 @@ if (typeof window !== "undefined" && "speechSynthesis" in window) {
 
 export const VOICE_PROMPTS = {
   en: {
-    name: "English (Sweet Natural)",
+    id: "en",
+    name: "English",
+    nativeName: "English",
     flag: "🇬🇧",
     langCode: "en-US",
-    welcomeTutorial: "Welcome to your knee health check. Let's make this very easy for you. Sit comfortably on your chair with arms gently crossed. Whenever you are ready, press Start Test Now and we will do it together.",
+    previewPhrase: "Welcome to Sandhi-AI! English voice guidance is ready.",
+    welcomeTutorial: "Welcome to your knee health check. Sit comfortably on your chair with arms crossed over your chest. When ready, click Start Test Now to begin our 3-2-1 countdown.",
     countdown3: "Three",
     countdown2: "Two",
     countdown1: "One",
     countdownGo: "Begin! Stand up tall, and sit down gently. You are doing so well!",
-    sitToStandStart: "Let's begin! Stand up tall, then sit down comfortably. You are doing wonderful!",
     repPraise: [
       "Good! That is one.",
       "Very nice posture, that is two.",
@@ -35,21 +36,22 @@ export const VOICE_PROMPTS = {
       "Superb! All ten completed!"
     ],
     tenRepsFinished: "Congratulations! You have completed all 10 repetitions with wonderful form. Taking you to the results now.",
-    testFinished: "Wonderful effort! You did fantastic today. Take a gentle breath and relax while we prepare your joint report.",
+    testFinished: "Wonderful effort! You did fantastic today. Take a gentle breath while we prepare your report.",
     varusWarning: "Please keep your feet a little wider apart to protect your knees.",
-    crepitusNotice: "Listening gently to your knee joint acoustic vibrations now.",
-    riskModerate: "All done! Your knees showed good effort. We have prepared a friendly care plan for you."
+    crepitusNotice: "Acoustic analysis complete. Vibroarthrographic crepitus signals and joint stability metrics have been processed."
   },
   hi: {
-    name: "हिन्दी (मधुर आवाज़)",
+    id: "hi",
+    name: "Hindi",
+    nativeName: "हिन्दी",
     flag: "🇮🇳",
     langCode: "hi-IN",
-    welcomeTutorial: "नमस्ते! आपका स्वागत है। कुर्सी पर आराम से बैठें, हाथ सीने पर रखें। जब आप तैयार हों, 'Start Test Now' दबाएं।",
+    previewPhrase: "सन्धि-एआई में आपका स्वागत है। मधुर हिन्दी आवाज़ तैयार है।",
+    welcomeTutorial: "नमस्ते! घुटने की जांच में आपका स्वागत है। कुर्सी पर आराम से बैठें, दोनों हाथ सीने पर रखें। जब आप तैयार हों, 'Start Test Now' दबाएं।",
     countdown3: "तीन",
     countdown2: "दो",
     countdown1: "एक",
     countdownGo: "शुरू करें! आराम से खड़े हों और बैठें। बहुत बढ़िया!",
-    sitToStandStart: "शुरू करें! आराम से खड़े हों, फिर बैठें।",
     repPraise: [
       "बहुत बढ़िया, एक हुआ।",
       "सुंदर, दो हो गए।",
@@ -65,19 +67,20 @@ export const VOICE_PROMPTS = {
     tenRepsFinished: "बधाई हो! आपने सभी 10 पुनरावृत्तियां बहुत सुंदर तरीके से पूरी कर ली हैं।",
     testFinished: "बहुत-बहुत बधाई! आपने बहुत सुंदर तरीके से यह जांच पूरी की।",
     varusWarning: "कृपया अपने पैरों को थोड़ा सा फैलाकर रखें।",
-    crepitusNotice: "हम आपके घुटने की स्वाभाविक ध्वनि सुन रहे हैं।",
-    riskModerate: "जांच पूरी हुई।"
+    crepitusNotice: "ध्वनिक विश्लेषण पूरा हुआ। सैंडी-बैंड द्वारा जोड़ के कंपन और स्थिरता का डेटा प्रोसेस कर लिया गया है।"
   },
   as: {
-    name: "অসমীয়া",
+    id: "as",
+    name: "Assamese",
+    nativeName: "অসমীয়া",
     flag: "🇮🇳",
     langCode: "as-IN",
+    previewPhrase: "সন্ধি-এআইলৈ আপোনাক স্বাগতম। অসমীয়া কণ্ঠ সক্ৰিয় হ'ল।",
     welcomeTutorial: "নমস্কাৰ! আপোনাক আদৰণি জনাইছোঁ। চকীখনত আৰামেৰে বহক, হাত দুখন বুকুত ৰাখক। সাজু হ'লে পৰীক্ষা আৰম্ভ কৰক।",
     countdown3: "তিনি",
     countdown2: "দুই",
     countdown1: "এক",
-    countdownGo: "আৰম্ভ কৰক! থিয় হওক আৰু আৰামেৰে বহক।",
-    sitToStandStart: "আহক আৰম্ভ কৰোঁ! থিয় হওক আৰু আৰামেৰে বহক।",
+    countdownGo: "আৰম্ভ কৰক! থিয় হওক আৰু আৰামেৰে বহক। বৰ ভাল হৈছে!",
     repPraise: [
       "বৰ ধুনীয়া, এক হ'ল।",
       "বৰ ভাল হৈছে, দুই হ'ল।",
@@ -93,19 +96,20 @@ export const VOICE_PROMPTS = {
     tenRepsFinished: "অভিনন্দন! আপুনি দহোটা গণনা সফলতাৰে সম্পূৰ্ণ কৰিলে।",
     testFinished: "বৰ আনন্দিত হ'লোঁ! আপুনি বৰ সুন্দৰকৈ পৰীক্ষাটো সম্পূৰ্ণ কৰিলে।",
     varusWarning: "ভৰি দুখন অলপ ফাঁক কৰি ৰাখক।",
-    crepitusNotice: "আঁঠুৰ স্বাভাৱিক শব্দ পৰীক্ষা কৰা হৈছে।",
-    riskModerate: "পৰীক্ষা সম্পূৰ্ণ হ'ল।"
+    crepitusNotice: "শব্দ তৰংগৰ বিশ্লেষণ সম্পন্ন হ'ল। সন্ধিবন্ধৰ কঁপনি আৰু আঁঠুৰ জোৰাৰ তথ্য প্ৰস্তুত হৈছে।"
   },
   bn: {
-    name: "বাংলা",
+    id: "bn",
+    name: "Bengali",
+    nativeName: "বাংলা",
     flag: "🇮🇳",
     langCode: "bn-IN",
+    previewPhrase: "সন্ধি-এআই-তে আপনাকে স্বাগতম। মিষ্টি বাংলা ভয়েস প্রস্তুত।",
     welcomeTutorial: "নমস্কার! এই সহজ হাঁটু পরীক্ষাটিতে আপনাকে স্বাগতম। হাত দুটো বুকে রাখুন এবং প্রস্তুত হলে টেস্ট শুরু করুন।",
     countdown3: "তিন",
     countdown2: "দুই",
     countdown1: "এক",
-    countdownGo: "শুরু করুন! সোজা হয়ে দাঁড়ান, আবার বসুন।",
-    sitToStandStart: "আসুন শুরু করি! সোজা হয়ে দাঁড়ান, আবার বসুন।",
+    countdownGo: "শুরু করুন! সোজা হয়ে দাঁড়ান, আবার বসুন। দারুণ হচ্ছে!",
     repPraise: [
       "দারুণ, এক হলো।",
       "খুব ভালো, দুই হলো।",
@@ -121,12 +125,69 @@ export const VOICE_PROMPTS = {
     tenRepsFinished: "অভিনন্দন! আপনি সফলভাবে ১০টি সম্পন্ন করেছেন।",
     testFinished: "অসংখ্য ধন্যবাদ! আপনি অত্যন্ত সুন্দরভাবে পরীক্ষাটি সম্পন্ন করেছেন।",
     varusWarning: "পা দুটো একটু ফাঁক করে রাখুন।",
-    crepitusNotice: "হাঁটুর জয়েন্টের শব্দ পরীক্ষা করা হচ্ছে।",
-    riskModerate: "পরীক্ষা সম্পন্ন।"
+    crepitusNotice: "শব্দ তরঙ্গ বিশ্লেষণ সম্পন্ন হয়েছে। সন্ধিব্যান্ডের কম্পন ও হাঁটুর স্থায়িত্বের তথ্য প্রস্তুত।"
+  },
+  lus: {
+    id: "lus",
+    name: "Mizo",
+    nativeName: "Mizo ṭawng",
+    flag: "🇮🇳",
+    langCode: "en-IN",
+    previewPhrase: "Sandhi-AI ah kan lo lawm a che. Mizo tawng hman theih a ni e.",
+    welcomeTutorial: "Chibai! I khup endiknaah kan lo lawm a che. Thuthlengah ṭhu la, i kut i awmah kuangkuah rawh le. I inpeih hunah Start Test Now hmet rawh.",
+    countdown3: "Pathum",
+    countdown2: "Pahnih",
+    countdown1: "Khat",
+    countdownGo: "Tan rawh le! Ding ngil la, ṭhu leh rawh le. I ti ṭha lutuk e!",
+    repPraise: [
+      "A ṭha lutuk, pakhat!",
+      "Khatih chiah kha, pahnih!",
+      "I ti ṭha lutuk, pathum!",
+      "Chhunzawm zel rawh, pali!",
+      "A chanve kan thleng ta, panga!",
+      "Pariak!",
+      "Pasarih!",
+      "Pariat!",
+      "Pakua!",
+      "Kan zo e! Sawm a tling ta e!"
+    ],
+    tenRepsFinished: "I ti ṭha lutuk e! Vawi 10 i thleng fel ta. Result i en ang le.",
+    testFinished: "I ti ṭha lutuk e! Hahchawl la, result kan buatsaih mek e.",
+    varusWarning: "I ke kha tlemtein pawt kau deuh rawh le.",
+    crepitusNotice: "Khup ri chhuak endikna a zo ta. Thluak leh chuktuah dinhmun fel taka chhinchhiah a ni e."
+  },
+  mni: {
+    id: "mni",
+    name: "Manipuri",
+    nativeName: "মৈতৈলোন্",
+    flag: "🇮🇳",
+    langCode: "bn-IN",
+    previewPhrase: "সন্ধি-এআইদা তরামনা ওকচরি। মণিপুরী খোঞ্জেল শেম-শারে।",
+    welcomeTutorial: "খুরুমজরি! খোংগী হকশেল য়েংশিনবদা তরামনা ওকচরি। ফমবাক্তা তোংদুনা খুৎ অদু থবাক্তা থমসি। শেম-শাবদা Start Test Now অদু নমসি।",
+    countdown3: "অহুম",
+    countdown2: "অনি",
+    countdown1: "অমা",
+    countdownGo: "হৌরো! লেপকনি অদুগা অমুক ফমগনি। য়াম্না ফরে!",
+    repPraise: [
+      "য়াম্না ফরে, অমা!",
+      "ফরে, অনি!",
+      "অহুম!",
+      "মরি!",
+      "মঙা!",
+      "তরুক!",
+      "তরেৎ!",
+      "নিপাল!",
+      "মাপন!",
+      "য়াম্না ফরে! তরা শুরে!"
+    ],
+    tenRepsFinished: "থাগৎচরি! তরা মপুং ফানা লোইশিনখ্রে।",
+    testFinished: "য়াম্না ফরে! পোথারসি অদুগা রিজল্ট য়েংসি।",
+    varusWarning: "খোং অনী অদু খর হায়দোকউ।",
+    crepitusNotice: "খোংগী মখোং য়েংশিনবা লোইশিনখ্রে। খোংগী শক্তম অমসুং ফিভমগী রিজল্ট শেম-শারে।"
   }
 }
 
-// Gentle pleasant musical chime using Web Audio API
+// Gentle pleasant musical chime
 export function playPleasantChime() {
   if (typeof window === "undefined") return
   try {
@@ -134,8 +195,7 @@ export function playPleasantChime() {
     if (!AudioContext) return
     const ctx = new AudioContext()
     
-    // Play a gentle two-tone harmonic bell (E5 -> G#5)
-    const notes = [659.25, 830.61]
+    const notes = [659.25, 830.61] // E5 -> G#5
     notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -153,79 +213,75 @@ export function playPleasantChime() {
       osc.start(startTime)
       osc.stop(startTime + 0.45)
     })
-  } catch (e) {
-    // Ignore audio context autoplay restrictions
-  }
+  } catch (e) {}
 }
 
-// Find the sweetest, most natural, human-grade voice installed on the user's OS/browser
 export function getBestVoice(targetLang = "en") {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null
 
   let voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices()
   if (!voices.length) return null
 
-  // Ranked priority of the most pleasant, warm, studio-quality female/assistant voices
-  const topPleasantVoices = [
-    // macOS / iOS High-Quality Natural Voices
-    "Samantha (Enhanced)",
-    "Ava (Enhanced)",
-    "Serena (Premium)",
-    "Serena",
-    "Samantha",
-    "Ava",
-    "Zoe (Enhanced)",
-    "Zoe",
-    "Karen (Enhanced)",
-    "Karen",
-    "Moira",
-    "Fiona",
-    "Tessa",
-    // Chrome / Google Natural Cloud Voices
-    "Google UK English Female",
-    "Google US English",
-    "Google English",
-    // Windows Natural Voices
-    "Microsoft Jenny Online (Natural)",
-    "Microsoft Aria Online (Natural)",
-    "Microsoft Zira",
-    // Indian Voices
-    "Lekha",
-    "Veena",
-    "Neerja",
-    "Google हिन्दी"
-  ]
-
-  // Filter out harsh / robotic / joke system voices
   const harshNames = ["Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos", "Deranged", "Fred", "Good News", "Hysterical", "Junior", "Kathy", "Organ", "Princess", "Ralph", "Trinoids", "Whisper", "Zarvox"]
   const cleanVoices = voices.filter(v => !harshNames.some(h => v.name.includes(h)))
 
-  // 1. Try finding by highest ranked pleasant names
+  // 1. Language-specific matching FIRST to prevent English voices trying to speak Indian languages
+  if (targetLang === "hi") {
+    const hiVoice = cleanVoices.find(v => v.lang.toLowerCase().startsWith("hi") || v.name.includes("हिन्दी") || v.name.toLowerCase().includes("hindi") || v.name.includes("Lekha") || v.name.includes("Veena") || v.name.includes("Neerja") || v.name.includes("Swara"))
+    if (hiVoice) return hiVoice
+  }
+
+  if (targetLang === "bn") {
+    const bnVoice = cleanVoices.find(v => v.lang.toLowerCase().startsWith("bn") || v.name.includes("বাংলা") || v.name.toLowerCase().includes("bengali") || v.name.includes("Tanishaa") || v.name.includes("Bashkar"))
+    if (bnVoice) return bnVoice
+  }
+
+  if (targetLang === "as") {
+    const asVoice = cleanVoices.find(v => v.lang.toLowerCase().startsWith("as") || v.lang.toLowerCase().startsWith("bn") || v.name.includes("বাংলা") || v.name.includes("Lekha") || v.name.includes("Neerja"))
+    if (asVoice) return asVoice
+  }
+
+  if (targetLang === "mni") {
+    const mniVoice = cleanVoices.find(v => v.lang.toLowerCase().startsWith("mni") || v.lang.toLowerCase().startsWith("bn") || v.name.includes("বাংলা") || v.lang.toLowerCase().startsWith("hi"))
+    if (mniVoice) return mniVoice
+  }
+
+  if (targetLang === "lus") {
+    const lusVoice = cleanVoices.find(v => v.lang.toLowerCase().startsWith("en-in") || v.name.includes("Neerja") || v.name.includes("Veena") || v.name.includes("Samantha") || v.name.includes("Ava"))
+    if (lusVoice) return lusVoice
+  }
+
+  // 2. High-quality pleasant natural voices for English or fallback
+  const topPleasantVoices = [
+    "Samantha (Enhanced)", "Ava (Enhanced)", "Serena (Premium)", "Serena", "Samantha", "Ava",
+    "Zoe (Enhanced)", "Karen (Enhanced)", "Moira", "Fiona", "Tessa",
+    "Google UK English Female", "Google US English", "Google English",
+    "Microsoft Jenny Online (Natural)", "Microsoft Aria Online (Natural)", "Microsoft Zira"
+  ]
+
   for (const name of topPleasantVoices) {
     const match = cleanVoices.find(v => v.name.toLowerCase().includes(name.toLowerCase()))
     if (match) return match
   }
 
-  // 2. Try finding language match with natural female indicators
-  const langPrefix = targetLang === "hi" ? "hi" : targetLang === "bn" ? "bn" : targetLang === "as" ? "as" : "en"
-  const langMatches = cleanVoices.filter(v => v.lang.toLowerCase().startsWith(langPrefix))
+  const langConfig = VOICE_PROMPTS[targetLang] || VOICE_PROMPTS.en
+  const targetPrefix = langConfig.langCode.split("-")[0]
+  const langMatches = cleanVoices.filter(v => v.lang.toLowerCase().startsWith(targetPrefix))
   
   if (langMatches.length) {
-    const femaleMatch = langMatches.find(v => 
+    const naturalMatch = langMatches.find(v => 
       v.name.toLowerCase().includes("female") || 
       v.name.toLowerCase().includes("natural") ||
       v.name.toLowerCase().includes("enhanced")
     )
-    return femaleMatch || langMatches[0]
+    return naturalMatch || langMatches[0]
   }
 
   return cleanVoices[0] || voices[0]
 }
 
 export function speakText(text, lang = "en") {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-    return
-  }
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return
 
   try {
     window.speechSynthesis.cancel()
@@ -241,14 +297,14 @@ export function speakText(text, lang = "en") {
       utterance.lang = langConfig.langCode || "en-US"
     }
 
-    // Natural conversational human pitch and relaxed pacing
-    utterance.pitch = 1.02 // True human pitch (not chipmunk 1.15)
-    utterance.rate = 0.94  // Smooth, clear, calm cadence
+    // Tuning for a calm, friendly, empathetic healthcare assistant
+    utterance.pitch = lang === "en" ? 1.02 : 1.0
+    utterance.rate = lang === "en" ? 0.94 : 0.91
     utterance.volume = 1.0
 
     window.speechSynthesis.speak(utterance)
   } catch (err) {
-    console.warn("Speech synthesis notice:", err)
+    console.warn("Speech notice:", err)
   }
 }
 

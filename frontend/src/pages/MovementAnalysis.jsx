@@ -40,7 +40,30 @@ export default function MovementAnalysis() {
   const [testComplete, setTestComplete] = useState(false)
   const [completionReason, setCompletionReason] = useState("") // '10_REPS' or 'TIME_UP'
 
-  const currentLang = localStorage.getItem("sandhi_lang") || "en"
+  const [selectedLang, setSelectedLang] = useState(() => localStorage.getItem("sandhi_lang") || "en")
+  const [isPlayingVoicePreview, setIsPlayingVoicePreview] = useState(false)
+
+  useEffect(() => {
+    const onLangChange = (e) => {
+      if (e.detail) setSelectedLang(e.detail)
+    }
+    window.addEventListener("sandhi_language_changed", onLangChange)
+    return () => window.removeEventListener("sandhi_language_changed", onLangChange)
+  }, [])
+
+  const handleSelectLang = (langKey, playAudio = true) => {
+    setSelectedLang(langKey)
+    localStorage.setItem("sandhi_lang", langKey)
+    window.dispatchEvent(new CustomEvent("sandhi_language_changed", { detail: langKey }))
+
+    if (playAudio) {
+      setIsPlayingVoicePreview(true)
+      playPleasantChime()
+      const prompt = VOICE_PROMPTS[langKey] || VOICE_PROMPTS.en
+      speakText(prompt.previewPhrase || prompt.welcomeTutorial, langKey)
+      setTimeout(() => setIsPlayingVoicePreview(false), 3500)
+    }
+  }
 
   useEffect(() => {
     // Start the Human Demo visual player automatically on mount
@@ -79,11 +102,15 @@ export default function MovementAnalysis() {
     setCompletionReason(reason)
     stopCamera()
 
-    const prompt = VOICE_PROMPTS[currentLang] || VOICE_PROMPTS.en
+    const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
     if (reason === "10_REPS") {
-      speakText(prompt.tenRepsFinished, currentLang)
+      speakText(prompt.tenRepsFinished, selectedLang)
     } else {
-      speakText(`${prompt.testFinished} You completed ${repCount} repetitions!`, currentLang)
+      if (selectedLang === "en") {
+        speakText(`${prompt.testFinished} You completed ${repCount} repetitions!`, "en")
+      } else {
+        speakText(prompt.testFinished, selectedLang)
+      }
     }
   }
 
@@ -236,22 +263,22 @@ export default function MovementAnalysis() {
     playPleasantChime()
     setCountdown(3)
 
-    const prompt = VOICE_PROMPTS[currentLang] || VOICE_PROMPTS.en
-    speakText(prompt.countdown3, currentLang)
+    const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
+    speakText(prompt.countdown3, selectedLang)
 
     setTimeout(() => {
       setCountdown(2)
-      speakText(prompt.countdown2, currentLang)
+      speakText(prompt.countdown2, selectedLang)
     }, 1000)
 
     setTimeout(() => {
       setCountdown(1)
-      speakText(prompt.countdown1, currentLang)
+      speakText(prompt.countdown1, selectedLang)
     }, 2000)
 
     setTimeout(() => {
       setCountdown("GO!")
-      speakText(prompt.countdownGo, currentLang)
+      speakText(prompt.countdownGo, selectedLang)
       
       // Start the actual 30-second timer and detection ONLY NOW!
       setTimeout(() => {
@@ -346,7 +373,7 @@ export default function MovementAnalysis() {
       if (currentFlexAngle > 148 && prevState === "SITTING") {
         setRepCount((prevReps) => {
           const nextReps = prevReps + 1
-          speakRepPraise(nextReps, currentLang)
+          speakRepPraise(nextReps, selectedLang)
           return nextReps
         })
         return "STANDING"
@@ -480,6 +507,108 @@ export default function MovementAnalysis() {
           </div>
         </div>
 
+        {/* ── MULTILINGUAL AUDIO VOICE GUIDANCE DECK (MDoNER Item 4) ── */}
+        <div className="rounded-2xl border border-teal-200/90 bg-gradient-to-r from-teal-50/90 via-emerald-50/70 to-cyan-50/90 p-4 sm:p-5 shadow-xs mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-600 text-white text-lg shadow-xs">
+                🗣️
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span>Audio Voice Language</span>
+                  <span className="rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide">
+                    6 NER & National Languages
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select your preferred language. All countdowns, 10-rep praises, and instructions will speak in this voice.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSelectLang(selectedLang, true)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                  isPlayingVoicePreview
+                    ? "bg-teal-700 text-white border-teal-800 ring-2 ring-teal-400/40 animate-pulse"
+                    : "bg-white text-teal-800 border-teal-300 hover:bg-teal-50"
+                }`}
+                title="Play Audio Sample"
+              >
+                <span>🔊</span>
+                <span>{isPlayingVoicePreview ? "Speaking..." : "Play Voice Sample"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  playPleasantChime()
+                  speakText(VOICE_PROMPTS[selectedLang]?.welcomeTutorial, selectedLang)
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Listen to Full Tutorial"
+              >
+                <span>🌸</span>
+                <span className="hidden sm:inline">Tutorial Audio</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 6 Language Selection Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {Object.keys(VOICE_PROMPTS).map((langKey) => {
+              const lang = VOICE_PROMPTS[langKey]
+              const isSelected = selectedLang === langKey
+              return (
+                <button
+                  key={langKey}
+                  type="button"
+                  onClick={() => handleSelectLang(langKey, true)}
+                  className={`relative p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                    isSelected
+                      ? "bg-white border-teal-600 shadow-md ring-2 ring-teal-500/30"
+                      : "bg-white/70 border-slate-200 hover:bg-white hover:border-slate-300 shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-xl leading-none">{lang.flag}</span>
+                    {isSelected && (
+                      <span className="flex items-center gap-1 text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-teal-500 animate-ping" />
+                        ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs leading-tight">
+                      {lang.nativeName}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-medium">
+                      {lang.name}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Currently selected phrase preview text */}
+          <div className="mt-3 pt-2.5 border-t border-teal-100 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-600 gap-1.5">
+            <div className="flex items-center gap-2 truncate">
+              <span className="font-semibold text-teal-900">Current Voice:</span>
+              <span className="italic text-slate-700 truncate">
+                "{VOICE_PROMPTS[selectedLang]?.previewPhrase}"
+              </span>
+            </div>
+            <div className="text-[11px] text-teal-700 font-medium whitespace-nowrap">
+              🗣️ Audio Active: {VOICE_PROMPTS[selectedLang]?.name} ({VOICE_PROMPTS[selectedLang]?.nativeName})
+            </div>
+          </div>
+        </div>
+
         {/* ── MODE 1: HUMAN DEMONSTRATION VIDEO STAGE ── */}
         {activeMode === "DEMO" && (
           <div className="rounded-3xl bg-white border border-slate-200 p-6 md:p-8 shadow-sm mb-6">
@@ -499,11 +628,14 @@ export default function MovementAnalysis() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => speakText(VOICE_PROMPTS[currentLang]?.welcomeTutorial, currentLang)}
+                  onClick={() => {
+                    playPleasantChime()
+                    speakText(VOICE_PROMPTS[selectedLang]?.welcomeTutorial, selectedLang)
+                  }}
                   className="rounded-xl bg-pink-50 border border-pink-200 px-3.5 py-2 text-xs font-bold text-pink-800 hover:bg-pink-100 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>🌸</span>
-                  <span>Listen to Sweet Audio Guidance</span>
+                  <span>Listen Tutorial in {VOICE_PROMPTS[selectedLang]?.name || "English"} ({VOICE_PROMPTS[selectedLang]?.flag})</span>
                 </button>
               </div>
             </div>
@@ -724,6 +856,24 @@ export default function MovementAnalysis() {
                 <p className="mt-1 text-[11px] text-slate-400">
                   Fast detection algorithm: &lt;118° (Sitting) &bull; &gt;148° (Standing)
                 </p>
+              </div>
+
+              <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">Audio Voice Active</span>
+                  <span className="text-xs font-bold text-teal-700 font-mono">{VOICE_PROMPTS[selectedLang]?.flag} {VOICE_PROMPTS[selectedLang]?.name}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  {VOICE_PROMPTS[selectedLang]?.nativeName} voice active. Rep counts & form feedback are spoken aloud.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleSelectLang(selectedLang, true)}
+                  className="mt-2 text-[11px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>🔊</span>
+                  <span>Test Voice Audio Now</span>
+                </button>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">

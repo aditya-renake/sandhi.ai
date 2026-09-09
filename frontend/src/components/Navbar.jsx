@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { VOICE_PROMPTS, speakText } from "../utils/speech"
+import { VOICE_PROMPTS, speakText, playPleasantChime } from "../utils/speech"
 
 export default function Navbar({ onPortalChange }) {
   const navigate = useNavigate()
@@ -23,6 +23,12 @@ export default function Navbar({ onPortalChange }) {
         setUser(JSON.parse(storedUser))
       } catch (e) {}
     }
+
+    const onLangChange = (e) => {
+      if (e.detail) setSelectedLang(e.detail)
+    }
+    window.addEventListener("sandhi_language_changed", onLangChange)
+    return () => window.removeEventListener("sandhi_language_changed", onLangChange)
   }, [])
 
   const handlePortalSwitch = (mode) => {
@@ -40,9 +46,11 @@ export default function Navbar({ onPortalChange }) {
   const handleLangChange = (lang) => {
     setSelectedLang(lang)
     localStorage.setItem("sandhi_lang", lang)
+    window.dispatchEvent(new CustomEvent("sandhi_language_changed", { detail: lang }))
     const prompt = VOICE_PROMPTS[lang]
     if (prompt) {
-      speakText(`${prompt.name} voice mode activated.`, lang)
+      playPleasantChime()
+      speakText(prompt.previewPhrase || prompt.nativeName, lang)
     }
   }
 
@@ -82,7 +90,7 @@ export default function Navbar({ onPortalChange }) {
           <button
             type="button"
             onClick={() => handlePortalSwitch("asha")}
-            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
               portalMode === "asha"
                 ? "bg-white text-teal-800 shadow-sm border border-slate-200"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
@@ -96,7 +104,7 @@ export default function Navbar({ onPortalChange }) {
           <button
             type="button"
             onClick={() => handlePortalSwitch("doctor")}
-            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
               portalMode === "doctor"
                 ? "bg-teal-700 text-white shadow-sm"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
@@ -120,7 +128,7 @@ export default function Navbar({ onPortalChange }) {
                 <button
                   key={langKey}
                   type="button"
-                  title={`Voice audio: ${lang.name}`}
+                  title={`Voice audio: ${lang.name} (${lang.nativeName}) - Click to hear audio`}
                   onClick={() => handleLangChange(langKey)}
                   className={`px-2 py-1 rounded text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
                     isSelected
@@ -147,7 +155,7 @@ export default function Navbar({ onPortalChange }) {
           <button
             onClick={handleLogout}
             title="Sign out"
-            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition text-xs"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition text-xs cursor-pointer"
           >
             Logout
           </button>
