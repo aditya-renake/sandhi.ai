@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
-import { speakText, speakRepPraise, VOICE_PROMPTS } from "../utils/speech"
+import { speakText, speakRepPraise, playPleasantChime, getBestVoice, VOICE_PROMPTS } from "../utils/speech"
 
 export default function MovementAnalysis() {
   const navigate = useNavigate()
@@ -233,6 +233,7 @@ export default function MovementAnalysis() {
     setRepCount(0)
     setTimerSeconds(30)
     setTestComplete(false)
+    playPleasantChime()
     setCountdown(3)
 
     const prompt = VOICE_PROMPTS[currentLang] || VOICE_PROMPTS.en
