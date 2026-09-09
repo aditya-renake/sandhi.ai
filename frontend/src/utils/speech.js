@@ -6,8 +6,12 @@ export const VOICE_PROMPTS = {
     name: "English",
     flag: "🇬🇧",
     langCode: "en-IN",
-    welcomeTutorial: "Hello and welcome! Let's do this gentle knee check together. It is very simple and safe. Sit on a chair, cross your arms over your chest, and when you are ready, stand up tall and sit back down smoothly. You will do great!",
-    sitToStandStart: "Ready? Let's begin! Stand up tall, then sit down comfortably. Take your time, you are doing wonderful!",
+    welcomeTutorial: "Hello! Welcome to your joint health check. Watch this quick demonstration: sit tall with arms crossed over your chest. When you are ready, click Start Test Now to begin.",
+    countdown3: "Three...",
+    countdown2: "Two...",
+    countdown1: "One...",
+    countdownGo: "Go! Stand up tall, then sit down smoothly. You are doing wonderful!",
+    sitToStandStart: "Let's begin! Stand up tall, then sit down comfortably. You are doing wonderful!",
     repPraise: [
       "Lovely! That's one.",
       "Beautiful posture, that's two!",
@@ -17,11 +21,10 @@ export const VOICE_PROMPTS = {
       "Wonderful! That's six.",
       "Great balance! That's seven.",
       "Outstanding! That's eight.",
-      "Keep smiling, that's nine!",
-      "Double digits, amazing! That's ten.",
-      "Incredible strength, that's eleven!",
-      "Brilliant! That's twelve."
+      "Almost there, that's nine!",
+      "Hooray! That is ten! Test complete!"
     ],
+    tenRepsFinished: "Congratulations! You have completed all 10 repetitions with wonderful form! Taking you to the results now.",
     testFinished: "Wonderful job! You did fantastic today. Take a gentle breath and relax while we prepare your joint report.",
     varusWarning: "Please keep your feet a little wider, shoulder-width apart, to protect your knees.",
     crepitusNotice: "Listening gently to your knee joint acoustic vibrations now.",
@@ -31,8 +34,12 @@ export const VOICE_PROMPTS = {
     name: "हिन्दी",
     flag: "🇮🇳",
     langCode: "hi-IN",
-    welcomeTutorial: "नमस्ते! आपका बहुत-बहुत स्वागत है। आइए मिलकर यह सरल घुटने का व्यायाम करें। कुर्सी पर आराम से बैठें, दोनों हाथ सीने पर रखें, और जब तैयार हों, सीधे खड़े हों और फिर बैठ जाएं। आप बहुत अच्छा करेंगे!",
-    sitToStandStart: "तैयार हैं? चलिए शुरू करते हैं! आराम से खड़े हों, फिर बैठें। आप बहुत अच्छा कर रहे हैं!",
+    welcomeTutorial: "नमस्ते! आपका बहुत-बहुत स्वागत है। यह वीडियो देखें: कुर्सी पर बैठें, दोनों हाथ सीने पर रखें। जब आप तैयार हों, 'Start Test Now' दबाएं।",
+    countdown3: "तीन...",
+    countdown2: "दो...",
+    countdown1: "एक...",
+    countdownGo: "शुरू करें! सीधे खड़े हों, फिर बैठें। बहुत बढ़िया!",
+    sitToStandStart: "शुरू करें! आराम से खड़े हों, फिर बैठें। आप बहुत अच्छा कर रहे हैं!",
     repPraise: [
       "बहुत बढ़िया! एक हुआ।",
       "सुंदर! दो हो गए।",
@@ -42,9 +49,10 @@ export const VOICE_PROMPTS = {
       "अद्भुत! छह हो गए।",
       "बहुत सुंदर संतुलन, सात!",
       "कमाल कर दिया, आठ!",
-      "जारी रखें, नौ हो गए!",
-      "बहुत खूब, दस पूरे!"
+      "बस एक और, नौ हो गए!",
+      "शाबाश! दस पूरे हो गए! परीक्षा संपन्न!"
     ],
+    tenRepsFinished: "बधाई हो! आपने सभी 10 पुनरावृत्तियां बहुत सुंदर तरीके से पूरी कर ली हैं। अब परिणाम देखते हैं।",
     testFinished: "बहुत-बहुत बधाई! आपने बहुत सुंदर तरीके से यह जांच पूरी की। अब आराम से बैठें।",
     varusWarning: "कृपया अपने पैरों को थोड़ा सा फैलाकर रखें, घुटने सुरक्षित रहेंगे।",
     crepitusNotice: "हम आपके घुटने की स्वाभाविक ध्वनि सुन रहे हैं।",
@@ -54,39 +62,57 @@ export const VOICE_PROMPTS = {
     name: "অসমীয়া",
     flag: "🇮🇳",
     langCode: "as-IN",
-    welcomeTutorial: "নমস্কাৰ! আপোনাক আদৰণি জনাইছোঁ। আহক আমি মিলি এই সহজ আঁঠুৰ পৰীক্ষাটো কৰোঁ। চকীখনত আৰামেৰে বহক, হাত দুখন বুকুত ৰাখক, আৰু থিয় হৈ পুনৰ বহক। আপুনি বৰ সুন্দৰকৈ কৰিব পাৰিব!",
-    sitToStandStart: "সাজু আছেনে? আহক আৰম্ভ কৰোঁ! থিয় হওক আৰু আৰামেৰে বহক। আপুনি বৰ সুন্দৰ কৰিছে!",
+    welcomeTutorial: "নমস্কাৰ! আপোনাক আদৰণি জনাইছোঁ। চকীখনত আৰামেৰে বহক, হাত দুখন বুকুত ৰাখক। সাজু হ'লে পৰীক্ষা আৰম্ভ কৰক।",
+    countdown3: "তিনি...",
+    countdown2: "দুই...",
+    countdown1: "এক...",
+    countdownGo: "আৰম্ভ কৰক! থিয় হওক আৰু আৰামেৰে বহক।",
+    sitToStandStart: "আহক আৰম্ভ কৰোঁ! থিয় হওক আৰু আৰামেৰে বহক।",
     repPraise: [
       "বৰ ধুনীয়া! এক হ'ল।",
       "বৰ ভাল হৈছে, দুই হ'ল!",
       "উত্তম প্ৰয়াস! তিনি হ'ল।",
       "বৰ সুন্দৰ, চাৰি হ'ল!",
-      "আপুনি বৰ শক্তিশালী, পাঁচ হ'ল!",
-      "অতি উত্তম! ছয় হ'ল।"
+      "পাঁচ হ'ল!",
+      "ছয় হ'ল!",
+      "সাত হ'ল!",
+      "আঠ হ'ল!",
+      "ন হ'ল!",
+      "অভিনন্দন! দহোটা সম্পূৰ্ণ হ'ল!"
     ],
-    testFinished: "বৰ আনন্দিত হ'লোঁ! আপুনি বৰ সুন্দৰকৈ পৰীক্ষাটো সম্পূৰ্ণ কৰিলে। এতিয়া আৰাম কৰক।",
-    varusWarning: "আঁঠুক সুৰক্ষিত ৰাখিবলৈ ভৰি দুখন অলপ ফাঁক কৰি ৰাখক।",
+    tenRepsFinished: "অভিনন্দন! আপুনি দহোটা গণনা সফলতাৰে সম্পূৰ্ণ কৰিলে।",
+    testFinished: "বৰ আনন্দিত হ'লোঁ! আপুনি বৰ সুন্দৰকৈ পৰীক্ষাটো সম্পূৰ্ণ কৰিলে।",
+    varusWarning: "ভৰি দুখন অলপ ফাঁক কৰি ৰাখক।",
     crepitusNotice: "আঁঠুৰ স্বাভাৱিক শব্দ পৰীক্ষা কৰা হৈছে।",
-    riskModerate: "পৰীক্ষা সম্পূৰ্ণ হ'ল। আপোনাৰ বাবে যত্নৰ পৰামৰ্শ প্ৰস্তুত কৰা হৈছে।"
+    riskModerate: "পৰীক্ষা সম্পূৰ্ণ হ'ল।"
   },
   bn: {
     name: "বাংলা",
     flag: "🇮🇳",
     langCode: "bn-IN",
-    welcomeTutorial: "নমস্কার! আপনাকে স্বাগত জানাই। আসুন আমরা একসাথে এই সহজ হাঁটুর পরীক্ষাটি করি। চেয়ারে আরাম করে বসুন, হাত দুটো বুকে রাখুন, এবং সোজা হয়ে দাঁড়িয়ে আবার বসুন। আপনি খুব ভালো করবেন!",
-    sitToStandStart: "প্রস্তুত তো? আসুন শুরু করি! সোজা হয়ে দাঁড়ান, আবার বসুন। আপনি দারুণ করছেন!",
+    welcomeTutorial: "নমস্কার! এই সহজ হাঁটু পরীক্ষাটিতে আপনাকে স্বাগতম। হাত দুটো বুকে রাখুন এবং প্রস্তুত হলে টেস্ট শুরু করুন।",
+    countdown3: "তিন...",
+    countdown2: "দুই...",
+    countdown1: "এক...",
+    countdownGo: "শুরু করুন! সোজা হয়ে দাঁড়ান, আবার বসুন।",
+    sitToStandStart: "আসুন শুরু করি! সোজা হয়ে দাঁড়ান, আবার বসুন।",
     repPraise: [
       "দারুণ! এক হলো।",
       "খুব ভালো, দুই হলো!",
       "চমৎকার! তিন হলো।",
-      "আপনি দারুণ করছেন, চার হলো!",
-      "আপনার মনোবল খুব ভালো, পাঁচ হলো!",
-      "অসাধারণ! ছয় হলো।"
+      "চার হলো!",
+      "পাঁচ হলো!",
+      "ছয় হলো!",
+      "সাত হলো!",
+      "আট হলো!",
+      "নয় হলো!",
+      "অভিনন্দন! দশটি সম্পন্ন হয়েছে!"
     ],
-    testFinished: "অসংখ্য ধন্যবাদ! আপনি অত্যন্ত সুন্দরভাবে পরীক্ষাটি সম্পন্ন করেছেন। এবার একটু বিশ্রাম নিন।",
-    varusWarning: "হাঁটু ভালো রাখতে পা দুটো একটু ফাঁক করে রাখুন।",
+    tenRepsFinished: "অভিনন্দন! আপনি সফলভাবে ১০টি সম্পন্ন করেছেন। ফলাফল দেখা হচ্ছে।",
+    testFinished: "অসংখ্য ধন্যবাদ! আপনি অত্যন্ত সুন্দরভাবে পরীক্ষাটি সম্পন্ন করেছেন।",
+    varusWarning: "পা দুটো একটু ফাঁক করে রাখুন।",
     crepitusNotice: "হাঁটুর জয়েন্টের শব্দ পরীক্ষা করা হচ্ছে।",
-    riskModerate: "পরীক্ষা সম্পন্ন। আপনার সুস্থতার জন্য পরামর্শ প্রস্তুত করা হয়েছে।"
+    riskModerate: "পরীক্ষা সম্পন্ন।"
   }
 }
 
@@ -104,11 +130,9 @@ export function speakText(text, lang = "en") {
     
     // Sweeter, warmer pitch and gentle pacing
     utterance.pitch = 1.15
-    utterance.rate = 0.90 // gentle and relaxed for rural/elderly patients
+    utterance.rate = 0.92
 
     const voices = window.speechSynthesis.getVoices()
-    
-    // Pick the most pleasant and natural female / clear voice if available
     const preferredNames = ["Google UK English Female", "Samantha", "Karen", "Moira", "Victoria", "Lekha", "Veena", "Neerja"]
     let selectedVoice = voices.find(v => preferredNames.some(name => v.name.includes(name)))
     
