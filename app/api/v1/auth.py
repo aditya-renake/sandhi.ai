@@ -62,6 +62,37 @@ async def login_for_access_token(
         full_name=user.full_name
     )
 
+@router.post("/login-json", response_model=Token)
+async def login_json(
+    credentials: LoginRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """JSON login endpoint for web frontend clients."""
+    stmt = select(User).where(User.username == credentials.username)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+        )
+
+    access_token = create_access_token(
+        subject=user.username,
+        role=user.role,
+        state=user.state
+    )
+
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        role=user.role,
+        state=user.state,
+        username=user.username,
+        full_name=user.full_name
+    )
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     payload = decode_access_token(token)

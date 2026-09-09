@@ -15,6 +15,16 @@ from app.services.screening_service import ScreeningService
 
 SAMPLE_USERS = [
     {
+        "username": "invictus",
+        "full_name": "Admin Invictus",
+        "email": "admin@invictus.care",
+        "password": "invictus@11",
+        "role": "admin",
+        "state": "Assam",
+        "district": "Kamrup Metropolitan",
+        "phc_name": "MDoNER Central Command"
+    },
+    {
         "username": "asha_assam",
         "full_name": "Minoti Das (ASHA)",
         "email": "minoti.das@assamhealth.gov.in",
