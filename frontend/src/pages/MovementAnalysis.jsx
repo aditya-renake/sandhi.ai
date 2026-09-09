@@ -9,13 +9,13 @@ export default function MovementAnalysis() {
   // Video & Canvas Refs
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
-  const demoCanvasRef = useRef(null)
+  const demoVideoRef = useRef(null)
   const streamRef = useRef(null)
   const animFrameId = useRef(null)
-  const demoAnimId = useRef(null)
 
   // Modes: 'DEMO' (Human video demonstration) or 'TEST' (Active camera/simulation test)
   const [activeMode, setActiveMode] = useState("DEMO") 
+  const [demoVideoSource, setDemoVideoSource] = useState("video") // 'video' or 'youtube'
 
   // Pre-test countdown state: null | 3 | 2 | 1 | 'GO'
   const [countdown, setCountdown] = useState(null)
@@ -23,10 +23,6 @@ export default function MovementAnalysis() {
   const [cameraActive, setCameraActive] = useState(false)
   const [isSimulating, setIsSimulating] = useState(false)
   const [cameraError, setCameraError] = useState("")
-
-  // Demo animation telemetry
-  const [demoAngle, setDemoAngle] = useState(168)
-  const [demoPhase, setDemoPhase] = useState("STANDING")
 
   // Biomechanical States
   const [kneeAngle, setKneeAngle] = useState(165)
@@ -66,13 +62,9 @@ export default function MovementAnalysis() {
   }
 
   useEffect(() => {
-    // Start the Human Demo visual player automatically on mount
-    startDemoAnimation()
-
     return () => {
       stopCamera()
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
-      if (demoAnimId.current) cancelAnimationFrame(demoAnimId.current)
     }
   }, [])
 
@@ -112,146 +104,6 @@ export default function MovementAnalysis() {
         speakText(prompt.testFinished, selectedLang)
       }
     }
-  }
-
-  // ── HUMAN DEMONSTRATION VIDEO / CANVAS ENGINE ──
-  const startDemoAnimation = () => {
-    let t = 0
-    const renderDemo = () => {
-      const canvas = demoCanvasRef.current
-      if (!canvas) return
-      const ctx = canvas.getContext("2d")
-      const w = canvas.width
-      const h = canvas.height
-
-      ctx.clearRect(0, 0, w, h)
-
-      // Background room gradient
-      const bg = ctx.createLinearGradient(0, 0, 0, h)
-      bg.addColorStop(0, "#f8fafc")
-      bg.addColorStop(1, "#e2e8f0")
-      ctx.fillStyle = bg
-      ctx.fillRect(0, 0, w, h)
-
-      // Floor
-      ctx.strokeStyle = "#94a3b8"
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(20, h * 0.88)
-      ctx.lineTo(w - 20, h * 0.88)
-      ctx.stroke()
-
-      // Wooden chair illustration
-      ctx.fillStyle = "#64748b"
-      // Seat
-      ctx.fillRect(w * 0.44, h * 0.58, w * 0.22, 12)
-      // Backrest
-      ctx.fillRect(w * 0.64, h * 0.30, 10, h * 0.30)
-      // Front & back legs
-      ctx.fillRect(w * 0.45, h * 0.58, 8, h * 0.30)
-      ctx.fillRect(w * 0.64, h * 0.58, 8, h * 0.30)
-
-      // Smooth, natural human sit-to-stand motion (2.2 seconds cycle)
-      t += 0.032
-      const phase = (Math.sin(t) + 1) / 2 // 0 (seated) to 1 (standing tall)
-      const currentAngle = Math.round(92 + phase * (170 - 92))
-      setDemoAngle(currentAngle)
-      setDemoPhase(phase > 0.45 ? "STANDING" : "SITTING")
-
-      // Body landmarks with realistic proportions
-      const headY = h * 0.20 + (1 - phase) * 65
-      const headX = w * 0.43 - (1 - phase) * 16
-      const shoulderX = headX
-      const shoulderY = headY + 28
-      const hipX = w * 0.45 - (1 - phase) * 22
-      const hipY = h * 0.48 + (1 - phase) * 34
-      const kneeX = w * 0.38 + (1 - phase) * 44
-      const kneeY = h * 0.68 + (1 - phase) * 6
-      const ankleX = w * 0.36
-      const ankleY = h * 0.88
-
-      // Draw Human Body
-      // Head & face
-      ctx.fillStyle = "#fbcfe8"
-      ctx.beginPath()
-      ctx.arc(headX, headY, 15, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = "#e11d48"
-      ctx.lineWidth = 2
-      ctx.stroke()
-
-      // Torso (teal medical scrubs)
-      ctx.strokeStyle = "#0f766e"
-      ctx.lineWidth = 16
-      ctx.lineCap = "round"
-      ctx.beginPath()
-      ctx.moveTo(shoulderX, shoulderY)
-      ctx.lineTo(hipX, hipY)
-      ctx.stroke()
-
-      // Crossed arms over chest (vital clinical instruction)
-      ctx.strokeStyle = "#fb7185"
-      ctx.lineWidth = 7
-      ctx.beginPath()
-      ctx.moveTo(shoulderX - 12, shoulderY + 8)
-      ctx.lineTo(shoulderX + 12, shoulderY + 18)
-      ctx.moveTo(shoulderX + 12, shoulderY + 8)
-      ctx.lineTo(shoulderX - 12, shoulderY + 18)
-      ctx.stroke()
-
-      // Legs (dark slate trousers)
-      ctx.strokeStyle = "#1e293b"
-      ctx.lineWidth = 11
-      ctx.beginPath()
-      ctx.moveTo(hipX, hipY)
-      ctx.lineTo(kneeX, kneeY)
-      ctx.lineTo(ankleX, ankleY)
-      ctx.stroke()
-
-      // Feet flat on floor
-      ctx.strokeStyle = "#0f172a"
-      ctx.lineWidth = 6
-      ctx.beginPath()
-      ctx.moveTo(ankleX, ankleY)
-      ctx.lineTo(ankleX - 22, ankleY)
-      ctx.stroke()
-
-      // MediaPipe Tracking Skeleton Lines
-      ctx.strokeStyle = "#14b8a6"
-      ctx.lineWidth = 3
-      ctx.setLineDash([4, 4])
-      ctx.beginPath()
-      ctx.moveTo(hipX, hipY)
-      ctx.lineTo(kneeX, kneeY)
-      ctx.lineTo(ankleX, ankleY)
-      ctx.stroke()
-      ctx.setLineDash([])
-
-      // Landmark Joint Dots
-      const joints = [
-        { x: hipX, y: hipY, label: "Hip (24)" },
-        { x: kneeX, y: kneeY, label: `Knee: ${currentAngle}°` },
-        { x: ankleX, y: ankleY, label: "Ankle (28)" }
-      ]
-
-      joints.forEach(j => {
-        ctx.fillStyle = "#ffffff"
-        ctx.beginPath()
-        ctx.arc(j.x, j.y, 6, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.strokeStyle = "#0d9488"
-        ctx.lineWidth = 3
-        ctx.stroke()
-
-        ctx.fillStyle = "#0f172a"
-        ctx.font = "bold 11px Inter, sans-serif"
-        ctx.fillText(j.label, j.x + 10, j.y + 4)
-      })
-
-      demoAnimId.current = requestAnimationFrame(renderDemo)
-    }
-
-    renderDemo()
   }
 
   // ── INITIATE COUNTDOWN BEFORE TIMER (User Request: "ask first like start now test") ──
@@ -642,27 +494,81 @@ export default function MovementAnalysis() {
 
             <div className="grid gap-6 md:grid-cols-2 items-center">
               
-              {/* Left: High-Quality Animated Human Simulation Player */}
-              <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-inner aspect-4/3 bg-slate-100 flex items-center justify-center">
-                <canvas
-                  ref={demoCanvasRef}
-                  width={420}
-                  height={320}
-                  className="w-full h-full object-cover"
-                />
+              {/* Left: REAL HUMAN BEING CLINICAL DEMONSTRATION VIDEO */}
+              <div className="space-y-3">
+                <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-xl aspect-4/3 flex items-center justify-center group">
+                  {demoVideoSource === "video" ? (
+                    <video
+                      ref={demoVideoRef}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      controls
+                      className="w-full h-full object-cover"
+                    >
+                      <source src="/videos/human_demo.webm" type="video/webm" />
+                      <source src="https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d5/30-Second_Chair_Stand_Test.webm/30-Second_Chair_Stand_Test.webm.480p.vp9.webm" type="video/webm" />
+                      <source src="https://upload.wikimedia.org/wikipedia/commons/d/d5/30-Second_Chair_Stand_Test.webm" type="video/webm" />
+                      Your browser does not support HTML5 video.
+                    </video>
+                  ) : (
+                    <iframe
+                      src="https://www.youtube-nocookie.com/embed/Ng-UOHjTejY?autoplay=1&mute=1&loop=1&playlist=Ng-UOHjTejY"
+                      title="Clinical 30-Second Chair Stand Test Human Demo"
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  )}
 
-                {/* Real-time Angle & State HUD on Demo */}
-                <div className="absolute top-3 left-3 rounded-lg bg-slate-900/85 backdrop-blur-md px-3 py-1.5 text-white font-mono text-xs">
-                  <span>Knee Flexion: </span>
-                  <b className="text-teal-400 font-bold">{demoAngle}°</b>
+                  {/* Top Badge: Real Human Clinical Protocol */}
+                  <div className="absolute top-3 left-3 pointer-events-none rounded-lg bg-slate-900/90 backdrop-blur-md px-3 py-1.5 text-white flex items-center gap-2 border border-slate-700/80 shadow-md">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-xs font-bold tracking-wide uppercase text-emerald-300">
+                      Real Human Demonstration (CDC STEADI Protocol)
+                    </span>
+                  </div>
+
+                  {/* Form Checklist Overlay */}
+                  <div className="absolute bottom-3 left-3 right-3 pointer-events-none hidden sm:flex justify-between items-center bg-slate-900/90 backdrop-blur-md rounded-xl px-3.5 py-2 border border-slate-700 text-[11px] text-white shadow-md">
+                    <span className="text-teal-300 font-bold">✓ Arms Folded Over Chest</span>
+                    <span className="text-emerald-300 font-bold">✓ Stand Completely Straight</span>
+                    <span className="text-amber-300 font-bold">✓ No Hand Push</span>
+                  </div>
                 </div>
 
-                <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center bg-white/95 backdrop-blur-md rounded-xl px-4 py-2 border border-slate-200 text-xs shadow-sm">
-                  <span className="text-slate-600 font-medium">State Detection:</span>
-                  <span className={`font-black tracking-wide uppercase px-2.5 py-0.5 rounded text-[11px] ${
-                    demoPhase === "STANDING" ? "bg-emerald-100 text-emerald-800" : "bg-orange-100 text-orange-800"
-                  }`}>
-                    {demoPhase === "STANDING" ? "Standing (Ext > 148°)" : "Sitting (Flex < 118°)"}
+                {/* Source Selection Bar */}
+                <div className="flex items-center justify-between text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-700">Demonstration Video:</span>
+                    <button
+                      type="button"
+                      onClick={() => setDemoVideoSource("video")}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                        demoVideoSource === "video"
+                          ? "bg-teal-700 text-white shadow-xs"
+                          : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>🎥</span>
+                      <span>Real Patient Video</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDemoVideoSource("youtube")}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                        demoVideoSource === "youtube"
+                          ? "bg-red-600 text-white shadow-xs"
+                          : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>▶</span>
+                      <span>YouTube Guide</span>
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-teal-700 font-semibold hidden md:inline">
+                    Authentic Clinical Assessment Video
                   </span>
                 </div>
               </div>
