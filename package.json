@@ -1,0 +1,11 @@
+{
+  "name": "sandhi-ner-oa-care",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "install:frontend": "npm install --prefix frontend",
+    "vercel-build": "npm install --prefix frontend && npm run build --prefix frontend"
+  }
+}
