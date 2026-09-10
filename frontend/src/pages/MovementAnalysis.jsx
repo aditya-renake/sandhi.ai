@@ -254,12 +254,12 @@ export default function MovementAnalysis() {
       setMaxExtension(prev => Math.max(prev, smoothedAngle))
 
       // 5. Hysteresis State Machine for Sit/Stand Transitions
-      if (smoothedAngle >= 148 && sitToStandState !== "STANDING") {
+      if (smoothedAngle >= 148 && lastPostureRef.current !== "STANDING") {
         setSitToStandState("STANDING")
         lastPostureRef.current = "STANDING"
         setElevationPercent(90)
         playPleasantChime()
-      } else if (smoothedAngle <= 108 && sitToStandState === "STANDING") {
+      } else if (smoothedAngle <= 108 && lastPostureRef.current === "STANDING") {
         setSitToStandState("SITTING")
         lastPostureRef.current = "SITTING"
         setElevationPercent(15)
@@ -434,7 +434,7 @@ export default function MovementAnalysis() {
 
   // Instant Posture Toggle (Click / Spacebar Trigger)
   const handleTogglePosture = (forcedState = null) => {
-    const nextState = forcedState || (sitToStandState === "STANDING" ? "SITTING" : "STANDING")
+    const nextState = forcedState || (lastPostureRef.current === "STANDING" ? "SITTING" : "STANDING")
     if (nextState === "STANDING") {
       setSitToStandState("STANDING")
       lastPostureRef.current = "STANDING"
