@@ -432,30 +432,7 @@ export default function MovementAnalysis() {
     }
   }
 
-  // Instant Posture Toggle (Click / Spacebar Trigger)
-  const handleTogglePosture = (forcedState = null) => {
-    const nextState = forcedState || (lastPostureRef.current === "STANDING" ? "SITTING" : "STANDING")
-    if (nextState === "STANDING") {
-      setSitToStandState("STANDING")
-      lastPostureRef.current = "STANDING"
-      smoothElevationRef.current = 0.88
-      setElevationPercent(88)
-      setKneeAngle(clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 166)
-      playPleasantChime()
-    } else {
-      setSitToStandState("SITTING")
-      lastPostureRef.current = "SITTING"
-      smoothElevationRef.current = 0.12
-      setElevationPercent(12)
-      setKneeAngle(clinicalProfile === "healthy" ? 74 : clinicalProfile === "severe" ? 104 : 88)
-      setRepCount((prev) => {
-        const next = prev + 1
-        playPleasantChime()
-        speakRepPraise(next, selectedLang)
-        return next
-      })
     }
-  }
 
   
 
