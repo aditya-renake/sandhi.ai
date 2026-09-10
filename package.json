@@ -7,5 +7,9 @@
     "build": "npm run build --prefix frontend",
     "install:frontend": "npm install --prefix frontend",
     "vercel-build": "npm install --prefix frontend && npm run build --prefix frontend"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
   }
 }

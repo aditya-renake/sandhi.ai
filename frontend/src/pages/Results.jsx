@@ -41,6 +41,7 @@ export default function Results() {
   const vag = stateData.vagData || {}
   const burstCount = vag.burstCount ?? (compositeScore >= 65 ? 7 : compositeScore >= 35 ? 4 : 1)
   const peakFrequency = vag.peakFrequency ?? (compositeScore >= 65 ? 245 : compositeScore >= 35 ? 142 : 85)
+  const triFactor = stateData.triFactorBreakdown || {}
 
   const hasSyncedRef = useRef(false)
   const [synced, setSynced] = useState(false)
@@ -209,6 +210,44 @@ export default function Results() {
           <p className="mx-auto mt-4 max-w-lg text-xs text-slate-500 leading-relaxed">
             Composite evaluation fuses MediaPipe 30s chair stand kinematics, SandhiBand™ VAG acoustic friction micro-bursts, clinical WOMAC index, and anatomical knee axis ratios.
           </p>
+        </div>
+
+        {/* Sandy AI 3-Pillar Sub-Score Breakdown */}
+        <div className="mt-6 rounded-2xl bg-white border border-slate-200 p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <h3 className="text-base font-bold text-slate-900">
+              Sandy AI — Tri-Factor Multimodal Sub-Scores
+            </h3>
+            <span className="text-xs font-mono font-bold text-slate-500">
+              Final = (0.30 × Q) + (0.35 × CV) + (0.35 × HW)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-bold text-teal-700 uppercase">1. Questionnaire (30%)</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.questionnaire_score ?? womacScore}/100</span>
+              </div>
+              <p className="text-[11px] text-slate-500">WOMAC pain, stiffness & physical function scale</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-bold text-cyan-700 uppercase">2. CV Kinematics (35%)</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.cv_score ?? (reps < 8 ? 72 : 40)}/100</span>
+              </div>
+              <p className="text-[11px] text-slate-500">{reps} chair stands in 30s &bull; {rom}° ROM</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-bold text-amber-700 uppercase">3. Hardware Sensor (35%)</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.hardware_score ?? (burstCount >= 5 ? 65 : 35)}/100</span>
+              </div>
+              <p className="text-[11px] text-slate-500">{burstCount} VAG bursts &bull; {peakFrequency} Hz peak</p>
+            </div>
+          </div>
         </div>
 
         {/* Diagnostic Factor Breakdown (Now 100% Dynamic!) */}
@@ -384,6 +423,19 @@ export default function Results() {
               </>
             )}
           </ul>
+        </div>
+
+        {/* MANDATORY GUARDRAIL: CLINICAL DISCLAIMER */}
+        <div className="mt-6 rounded-2xl bg-amber-50 border border-amber-200 p-4.5 text-amber-900 flex items-start gap-3 shadow-xs">
+          <span className="text-xl shrink-0">⚠️</span>
+          <div>
+            <p className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+              Mandatory Clinical Screening Guardrail
+            </p>
+            <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+              Sandy AI is an AI-assisted early risk screening tool, not a definitive medical diagnosis. If your risk is moderate or high, consult a qualified Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
+            </p>
+          </div>
         </div>
 
         {/* Action Buttons */}
