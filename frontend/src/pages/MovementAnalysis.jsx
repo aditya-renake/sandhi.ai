@@ -27,6 +27,9 @@ export default function MovementAnalysis() {
   const offscreenCanvasRef = useRef(null)
   const sittingBaselineYRef = useRef(null)
   const standingBaselineYRef = useRef(null)
+  const sittingHeadYRef = useRef(0.50)
+  const standingHeadYRef = useRef(0.24)
+  const currentHeadYRef = useRef(0.50)
   const smoothElevationRef = useRef(0.18)
   const lastPostureRef = useRef("SITTING")
   const repCooldownRef = useRef(0)
@@ -274,65 +277,128 @@ export default function MovementAnalysis() {
     }
 
     // Draw Live Skeleton Overlay from MediaPipe 2D Landmarks
-    drawMediaPipeSkeleton(results.poseLandmarks, visEval.side, smoothedAngle)
+    // Read real Nose (0) & Shoulders (11, 12) for upper body vertical position
+    if (results.poseLandmarks && results.poseLandmarks[0]) {
+      const nose = results.poseLandmarks[0]
+      const lSh = results.poseLandmarks[11]
+      const rSh = results.poseLandmarks[12]
+      if (nose.visibility > 0.35) {
+        let headY = nose.y
+        if (lSh && rSh && lSh.visibility > 0.25 && rSh.visibility > 0.25) {
+          headY = (nose.y * 2 + lSh.y + rSh.y) / 4.0
+        }
+        currentHeadYRef.current = headY
+      }
+    }
   }
 
-  // Draw real MediaPipe landmarks onto canvas overlay
-  const drawMediaPipeSkeleton = (landmarks, side, currentAngle) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    const w = canvas.width
-    const h = canvas.height
+  // ── DRAW VIBRANT BIOMECHANICAL HUMAN BODY SHAPE AVATAR ──
+  const drawBiomechanicalAvatar = (ctx, x, y, width, height, elev, posture, angle) => {
+    ctx.save()
+    // 1. Futuristic Hologram Pod Background
+    ctx.fillStyle = "rgba(10, 15, 30, 0.85)"
+    ctx.beginPath()
+    ctx.roundRect(x, y, width, height, 16)
+    ctx.fill()
+    ctx.strokeStyle = posture === "STANDING" ? "rgba(16, 185, 129, 0.8)" : "rgba(245, 158, 11, 0.8)"
+    ctx.lineWidth = 2
+    ctx.stroke()
 
-    ctx.clearRect(0, 0, w, h)
+    // 2. Pod Header Label
+    ctx.fillStyle = "#38bdf8"
+    ctx.font = "bold 9px Inter, sans-serif"
+    ctx.fillText("BIOMECHANICAL AVATAR", x + 12, y + 18)
 
-    const hipIdx = side === "right" ? 24 : 23
-    const kneeIdx = side === "right" ? 26 : 25
-    const ankleIdx = side === "right" ? 28 : 27
+    // 3. Avatar Articulation Geometry
+    const cx = x + width * 0.48
+    const cy = y + height * 0.48
+    const scale = 0.82
 
-    const hip = landmarks[hipIdx]
-    const knee = landmarks[kneeIdx]
-    const ankle = landmarks[ankleIdx]
+    const headY = cy - 65 * scale + (1 - elev) * 32 * scale
+    const neckY = headY + 14 * scale
+    const hipX = cx - (1 - elev) * 16 * scale
+    const hipY = cy + (1 - elev) * 32 * scale
 
-    if (hip && knee && ankle) {
-      const hx = hip.x * w, hy = hip.y * h
-      const kx = knee.x * w, ky = knee.y * h
-      const ax = ankle.x * w, ay = ankle.y * h
+    const kneeX = cx + (1 - elev) * 20 * scale
+    const kneeY = hipY + 38 * scale + (1 - elev) * 8 * scale
 
-      // Draw Thigh Line
+    const ankleX = cx + (1 - elev) * 6 * scale
+    const ankleY = cy + 85 * scale
+
+    const primaryColor = posture === "STANDING" ? "#10b981" : "#f59e0b"
+    const secondaryColor = "#00f5ff"
+
+    // Draw Chair if Sitting
+    if (elev < 0.50) {
       ctx.beginPath()
-      ctx.lineWidth = 6
-      ctx.strokeStyle = sitToStandState === "STANDING" ? "#10b981" : "#f59e0b"
-      ctx.lineCap = "round"
-      ctx.moveTo(hx, hy)
-      ctx.lineTo(kx, ky)
+      ctx.strokeStyle = "rgba(100, 116, 139, 0.6)"
+      ctx.lineWidth = 3
+      ctx.moveTo(hipX - 18 * scale, hipY - 25 * scale)
+      ctx.lineTo(hipX - 18 * scale, hipY + 12 * scale)
+      ctx.lineTo(hipX + 10 * scale, hipY + 12 * scale)
+      ctx.lineTo(hipX + 10 * scale, cy + 85 * scale)
       ctx.stroke()
-
-      // Draw Shank Line
-      ctx.beginPath()
-      ctx.lineWidth = 6
-      ctx.strokeStyle = "#00f5ff"
-      ctx.moveTo(kx, ky)
-      ctx.lineTo(ax, ay)
-      ctx.stroke()
-
-      // Draw Joints
-      ;[[hx, hy, "#38bdf8"], [kx, ky, sitToStandState === "STANDING" ? "#10b981" : "#f59e0b"], [ax, ay, "#06b6d4"]].forEach(([x, y, color]) => {
-        ctx.beginPath()
-        ctx.arc(x, y, 7, 0, 2 * Math.PI)
-        ctx.fillStyle = "#ffffff"
-        ctx.fill()
-        ctx.lineWidth = 3
-        ctx.strokeStyle = color
-        ctx.stroke()
-      })
-
-      // Angle label at knee
-      ctx.font = "bold 13px Inter, sans-serif"
-      ctx.fillStyle = "#ffffff"
-      ctx.fillText(`${currentAngle}° (3D)`, kx + 12, ky + 4)
     }
+
+    // Spine / Torso
+    ctx.beginPath()
+    ctx.strokeStyle = secondaryColor
+    ctx.lineWidth = 5
+    ctx.lineCap = "round"
+    ctx.moveTo(cx, neckY)
+    ctx.lineTo(hipX, hipY)
+    ctx.stroke()
+
+    // Thigh (Hip to Knee)
+    ctx.beginPath()
+    ctx.strokeStyle = primaryColor
+    ctx.lineWidth = 7
+    ctx.moveTo(hipX, hipY)
+    ctx.lineTo(kneeX, kneeY)
+    ctx.stroke()
+
+    // Shin / Calf (Knee to Ankle)
+    ctx.beginPath()
+    ctx.strokeStyle = secondaryColor
+    ctx.lineWidth = 5
+    ctx.moveTo(kneeX, kneeY)
+    ctx.lineTo(ankleX, ankleY)
+    ctx.stroke()
+
+    // Foot
+    ctx.beginPath()
+    ctx.strokeStyle = "#ffffff"
+    ctx.lineWidth = 4
+    ctx.moveTo(ankleX, ankleY)
+    ctx.lineTo(ankleX + 16 * scale, ankleY)
+    ctx.stroke()
+
+    // Head
+    ctx.beginPath()
+    ctx.arc(cx, headY, 11 * scale, 0, 2 * Math.PI)
+    ctx.fillStyle = "#ffffff"
+    ctx.fill()
+    ctx.strokeStyle = primaryColor
+    ctx.lineWidth = 3
+    ctx.stroke()
+
+    // Joints (Hip, Knee, Ankle)
+    ;[[hipX, hipY, "#38bdf8"], [kneeX, kneeY, primaryColor], [ankleX, ankleY, "#38bdf8"]].forEach(([jx, jy, c]) => {
+      ctx.beginPath()
+      ctx.arc(jx, jy, 5 * scale, 0, 2 * Math.PI)
+      ctx.fillStyle = "#ffffff"
+      ctx.fill()
+      ctx.strokeStyle = c
+      ctx.lineWidth = 2.5
+      ctx.stroke()
+    })
+
+    // Knee Angle & Posture Status Tag
+    ctx.fillStyle = primaryColor
+    ctx.font = "bold 11px Inter, sans-serif"
+    ctx.fillText(`${posture} (${angle}°)`, x + 12, y + height - 14)
+
+    ctx.restore()
   }
 
   const launchCamera = async () => {
@@ -391,17 +457,7 @@ export default function MovementAnalysis() {
     }
   }
 
-  // Global Spacebar listener for rapid testing
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.code === "Space" && activeMode === "TEST") {
-        e.preventDefault()
-        handleTogglePosture()
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [activeMode, sitToStandState, clinicalProfile, selectedLang])
+  
 
   const launchSimulation = () => {
     setIsSimulating(true)
@@ -410,16 +466,13 @@ export default function MovementAnalysis() {
     animFrameId.current = requestAnimationFrame(() => processFrame())
   }
 
-  // ── REAL COMPUTER VISION SITTING VS STANDING ANALYZER ──
-  const minObsYRef = useRef(0.20)
-  const maxObsYRef = useRef(0.60)
-
+  // ── REAL COMPUTER VISION FACE & UPPER-BODY Y TRACKER ──
   const analyzeWebcamBodyY = (video) => {
     if (!video || video.readyState < 2) return null
     if (!offscreenCanvasRef.current && typeof document !== "undefined") {
       const oc = document.createElement("canvas")
-      oc.width = 160
-      oc.height = 120
+      oc.width = 120
+      oc.height = 90
       offscreenCanvasRef.current = oc
     }
     const offCanvas = offscreenCanvasRef.current
@@ -427,49 +480,43 @@ export default function MovementAnalysis() {
     const offCtx = offCanvas.getContext("2d", { willReadFrequently: true })
 
     try {
-      offCtx.drawImage(video, 0, 0, 160, 120)
-      const imgData = offCtx.getImageData(0, 0, 160, 120)
-      const frameData = imgData.data
+      offCtx.drawImage(video, 0, 0, 120, 90)
+      const frameData = offCtx.getImageData(0, 0, 120, 90).data
 
-      let totalWeight = 0
-      let weightedYSum = 0
-      let highestHeadY = 120
+      let skinWeightSum = 0
+      let skinYSum = 0
+      let topDetectedY = 90
 
-      // Scan rows from top to bottom (y: 6 to 114) in central region (x: 24 to 136)
-      for (let y = 6; y < 114; y += 2) {
-        let rowContrast = 0
-        for (let x = 28; x < 132; x += 4) {
-          const idx = (y * 160 + x) * 4
+      // Scan upper 80% of rows in central 70% width
+      for (let y = 4; y < 75; y += 2) {
+        for (let x = 18; x < 102; x += 3) {
+          const idx = (y * 120 + x) * 4
           const r = frameData[idx]
           const g = frameData[idx + 1]
           const b = frameData[idx + 2]
 
-          const nextIdx = (y * 160 + Math.min(159, x + 4)) * 4
-          const diff = Math.abs(r - frameData[nextIdx]) + Math.abs(g - frameData[nextIdx + 1]) + Math.abs(b - frameData[nextIdx + 2])
-          const lum = 0.299 * r + 0.587 * g + 0.114 * b
+          // Detect human skin tones
+          const isSkin = r > 70 && g > 38 && b > 22 && r > g && r > b && (r - g) > 8
+          const isHeadUpper = y < 45 && r < 70 && g < 70 && b < 70
 
-          if (diff > 10 || (lum > 25 && lum < 235)) {
-            rowContrast += diff + 5
+          if (isSkin || isHeadUpper) {
+            if (y < topDetectedY) topDetectedY = y
+            const weight = (90 - y) * 2.0 + (isSkin ? 30 : 15)
+            skinYSum += y * weight
+            skinWeightSum += weight
           }
-        }
-
-        if (rowContrast > 40) {
-          if (y < highestHeadY) highestHeadY = y
-          const weight = (120 - y) * 1.5 + rowContrast
-          weightedYSum += y * weight
-          totalWeight += weight
         }
       }
 
-      if (totalWeight === 0) return null
-      const centroidY = weightedYSum / totalWeight
-      return (highestHeadY * 0.55 + centroidY * 0.45) / 120.0
+      if (skinWeightSum === 0) return null
+      const centroidY = skinYSum / skinWeightSum
+      return (topDetectedY * 0.65 + centroidY * 0.35) / 90.0
     } catch {
       return null
     }
   }
 
-  // ── PROCESS FRAME WITH REAL WEBCAM VISION & ADAPTIVE SKELETON ──
+  // ── PROCESS FRAME WITH DYNAMIC AVATAR & HEAD TRACKING ──
   const processFrame = (simulatedProgress = null) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -489,15 +536,27 @@ export default function MovementAnalysis() {
       } catch (e) {}
     }
 
+    let observedHeadY = currentHeadYRef.current
+
     if (isLiveWebcam) {
-      const normY = analyzeWebcamBodyY(videoRef.current)
+      const opticalY = analyzeWebcamBodyY(videoRef.current)
+      if (opticalY !== null) {
+        observedHeadY = opticalY
+      }
 
-      if (normY !== null) {
-        if (normY < minObsYRef.current) minObsYRef.current = Math.max(0.08, normY)
-        if (normY > maxObsYRef.current) maxObsYRef.current = Math.min(0.92, normY)
+      if (observedHeadY !== null) {
+        // Expand baselines adaptively
+        if (observedHeadY > sittingHeadYRef.current) {
+          sittingHeadYRef.current = Math.min(0.75, sittingHeadYRef.current * 0.90 + observedHeadY * 0.10)
+        }
+        if (observedHeadY < standingHeadYRef.current) {
+          standingHeadYRef.current = Math.max(0.12, standingHeadYRef.current * 0.90 + observedHeadY * 0.10)
+        }
 
-        const span = Math.max(0.12, maxObsYRef.current - minObsYRef.current)
-        const rawElev = Math.max(0, Math.min(1, (maxObsYRef.current - normY) / span))
+        const span = Math.max(0.14, sittingHeadYRef.current - standingHeadYRef.current)
+        // High head (observedHeadY small) -> rawElev ~ 1.0 (Standing)
+        // Lower head (observedHeadY large) -> rawElev ~ 0.0 (Sitting)
+        const rawElev = Math.max(0, Math.min(1, (sittingHeadYRef.current - observedHeadY) / span))
 
         smoothElevationRef.current = 0.65 * smoothElevationRef.current + 0.35 * rawElev
         elevation = smoothElevationRef.current
@@ -517,15 +576,15 @@ export default function MovementAnalysis() {
     let currentPosture = lastPostureRef.current
     if (elevation >= 0.52) {
       currentPosture = "STANDING"
-    } else if (elevation <= 0.40) {
+    } else if (elevation <= 0.38) {
       currentPosture = "SITTING"
     }
 
     // State Transition & Rep Counting
-    if (currentPosture === "STANDING" && lastPostureRef.current === "SITTING") {
+    if (!isLiveWebcam && currentPosture === "STANDING" && lastPostureRef.current === "SITTING") {
       lastPostureRef.current = "STANDING"
       setSitToStandState("STANDING")
-    } else if (currentPosture === "SITTING" && lastPostureRef.current === "STANDING") {
+    } else if (!isLiveWebcam && currentPosture === "SITTING" && lastPostureRef.current === "STANDING") {
       lastPostureRef.current = "SITTING"
       setSitToStandState("SITTING")
 
@@ -541,7 +600,7 @@ export default function MovementAnalysis() {
       }
     }
 
-    // Calculate dynamic knee angle from real elevation
+    // Dynamic knee angle from real elevation
     const lowAngle = clinicalProfile === "healthy" ? 74 : clinicalProfile === "severe" ? 104 : 88
     const highAngle = clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 166
     const currentFlexAngle = Math.round(lowAngle + elevation * (highAngle - lowAngle))
@@ -550,132 +609,52 @@ export default function MovementAnalysis() {
     setMinFlexion(prev => Math.min(prev, currentFlexAngle))
     setMaxExtension(prev => Math.max(prev, currentFlexAngle))
 
-    // Alignment Ratio
-    const targetRatio = clinicalProfile === "healthy" ? 1.02 : clinicalProfile === "severe" ? 1.58 : 1.34
-    const ratio = Number((targetRatio + (elevation * 0.05)).toFixed(2))
-    setAlignmentRatio(ratio)
+    // ── 1. DRAW BIOMECHANICAL HUMAN BODY AVATAR (Left Side Pod) ──
+    drawBiomechanicalAvatar(ctx, 16, 75, 140, 260, elevation, currentPosture, currentFlexAngle)
 
-    if (ratio > 1.3) {
-      setAlignmentStatus("Varus (Bow-leg) — High Medial OA Risk")
-    } else if (ratio < 0.8) {
-      setAlignmentStatus("Valgus (Knock-knee) — Lateral OA Risk")
-    } else {
-      setAlignmentStatus("Normal Alignment (0.8 ≤ ratio ≤ 1.3)")
-    }
+    // ── 2. DRAW HEAD LEVEL LASER TRACKER ON VIDEO (NO LINES ON FACE!) ──
+    const displayHeadY = (observedHeadY || (sittingHeadYRef.current - elevation * (sittingHeadYRef.current - standingHeadYRef.current))) * height
+    ctx.save()
 
-    // ── DRAW COMPUTER VISION SKELETON OVERLAY ──
-    const bodyCenter = width * 0.50
-    const hipY = height * (0.38 - elevation * 0.12)
-    const kneeY = height * (0.68 - elevation * 0.10)
-    const ankleY = height * 0.88
-    const headY = height * (0.16 - elevation * 0.08)
-
-    const kneeOffset = (1 - elevation) * 38
-
-    const hip = { x: bodyCenter + 15, y: hipY }
-    const knee = { x: bodyCenter + 20 + kneeOffset, y: kneeY }
-    const ankle = { x: bodyCenter + 15, y: ankleY }
-
-    const leftHip = { x: bodyCenter - 15, y: hipY }
-    const leftKnee = { x: bodyCenter - 20 - kneeOffset * 0.8, y: kneeY }
-    const leftAnkle = { x: bodyCenter - 15, y: ankleY }
-
-    // Draw Pelvis line
-    ctx.lineWidth = 4
-    ctx.strokeStyle = "#00f5ff"
-    ctx.lineCap = "round"
+    // Stand Target Line
+    const standY = standingHeadYRef.current * height
     ctx.beginPath()
-    ctx.moveTo(leftHip.x, leftHip.y)
-    ctx.lineTo(hip.x, hip.y)
-    ctx.stroke()
-
-    // Draw Right Leg
-    ctx.beginPath()
-    ctx.strokeStyle = currentPosture === "STANDING" ? "#10b981" : "#f59e0b"
-    ctx.lineWidth = 6
-    ctx.moveTo(hip.x, hip.y)
-    ctx.lineTo(knee.x, knee.y)
-    ctx.lineTo(ankle.x, ankle.y)
-    ctx.stroke()
-
-    // Draw Left Leg
-    ctx.beginPath()
-    ctx.strokeStyle = "#06b6d4"
-    ctx.lineWidth = 4
-    ctx.moveTo(leftHip.x, leftHip.y)
-    ctx.lineTo(leftKnee.x, leftKnee.y)
-    ctx.lineTo(leftAnkle.x, leftAnkle.y)
-    ctx.stroke()
-
-    // Draw Landmarks with vibrant neon glowing markers
-    const landmarks = [
-      { pt: { x: bodyCenter, y: headY }, label: "Head", color: "#38bdf8" },
-      { pt: hip, label: "Hip", color: "#06b6d4" },
-      { pt: knee, label: `Knee: ${currentFlexAngle}°`, color: currentPosture === "STANDING" ? "#10b981" : "#f59e0b" },
-      { pt: ankle, label: "Ankle", color: "#06b6d4" },
-      { pt: leftHip, label: "L.Hip", color: "#06b6d4" },
-      { pt: leftKnee, label: "L.Knee", color: "#06b6d4" },
-      { pt: leftAnkle, label: "L.Ankle", color: "#06b6d4" }
-    ]
-
-    landmarks.forEach(({ pt, label, color }) => {
-      ctx.fillStyle = "#ffffff"
-      ctx.beginPath()
-      ctx.arc(pt.x, pt.y, 6, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.lineWidth = 3
-      ctx.strokeStyle = color || "#06b6d4"
-      ctx.stroke()
-
-      ctx.fillStyle = "#f8fafc"
-      ctx.font = "bold 11px Inter, sans-serif"
-      ctx.fillText(label, pt.x + 8, pt.y + 4)
-    })
-
-    // ── VIBRANT REAL-TIME VERTICAL ELEVATION GAUGE ──
-    const gaugeX = 22
-    const gaugeY = 70
-    const gaugeW = 14
-    const gaugeH = 170
-
-    // Gauge background track
-    ctx.fillStyle = "rgba(15, 23, 42, 0.85)"
-    ctx.beginPath()
-    ctx.roundRect(gaugeX - 4, gaugeY - 6, gaugeW + 8, gaugeH + 12, 8)
-    ctx.fill()
-    ctx.strokeStyle = "rgba(14, 165, 233, 0.6)"
+    ctx.strokeStyle = "rgba(16, 185, 129, 0.55)"
     ctx.lineWidth = 1.5
+    ctx.setLineDash([4, 6])
+    ctx.moveTo(170, standY)
+    ctx.lineTo(width - 20, standY)
     ctx.stroke()
-
-    // Stand Zone (top 42%)
-    ctx.fillStyle = "rgba(16, 185, 129, 0.4)"
-    ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH * 0.45)
-
-    // Sit Zone (bottom 42%)
-    ctx.fillStyle = "rgba(245, 158, 11, 0.4)"
-    ctx.fillRect(gaugeX, gaugeY + gaugeH * 0.55, gaugeW, gaugeH * 0.45)
-
-    // Dynamic elevation fill
-    const fillH = gaugeH * elevation
-    ctx.fillStyle = currentPosture === "STANDING" ? "#10b981" : "#f59e0b"
-    ctx.fillRect(gaugeX, gaugeY + gaugeH - fillH, gaugeW, fillH)
-
-    // Current Indicator Pointer
-    const pointerY = gaugeY + gaugeH - fillH
-    ctx.fillStyle = "#38bdf8"
-    ctx.beginPath()
-    ctx.arc(gaugeX + gaugeW / 2, pointerY, 7, 0, 2 * Math.PI)
-    ctx.fill()
-    ctx.strokeStyle = "#ffffff"
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    // Gauge Labels
-    ctx.font = "bold 10px Inter, sans-serif"
     ctx.fillStyle = "#34d399"
-    ctx.fillText("STAND", gaugeX + gaugeW + 8, gaugeY + 14)
+    ctx.font = "bold 10px Inter, sans-serif"
+    ctx.fillText("▲ STAND LEVEL", width - 125, standY - 4)
+
+    // Sit Target Line
+    const sitY = sittingHeadYRef.current * height
+    ctx.beginPath()
+    ctx.strokeStyle = "rgba(245, 158, 11, 0.55)"
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([4, 6])
+    ctx.moveTo(170, sitY)
+    ctx.lineTo(width - 20, sitY)
+    ctx.stroke()
     ctx.fillStyle = "#fbbf24"
-    ctx.fillText("SIT", gaugeX + gaugeW + 8, gaugeY + gaugeH - 4)
+    ctx.font = "bold 10px Inter, sans-serif"
+    ctx.fillText("▼ SIT LEVEL", width - 110, sitY + 14)
+
+    // Current Dynamic Head Laser Line
+    ctx.beginPath()
+    ctx.strokeStyle = currentPosture === "STANDING" ? "rgba(16, 185, 129, 0.9)" : "rgba(245, 158, 11, 0.9)"
+    ctx.lineWidth = 2.5
+    ctx.setLineDash([8, 4])
+    ctx.moveTo(170, displayHeadY)
+    ctx.lineTo(width - 20, displayHeadY)
+    ctx.stroke()
+
+    ctx.fillStyle = "#ffffff"
+    ctx.font = "bold 11px Inter, sans-serif"
+    ctx.fillText(`👤 Head (${Math.round(elevation * 100)}%)`, width - 130, displayHeadY - 5)
+    ctx.restore()
 
     if ((isTestStarted || isSimulating) && !testComplete) {
       animFrameId.current = requestAnimationFrame(() => processFrame())
@@ -1180,22 +1159,7 @@ export default function MovementAnalysis() {
 
               {/* ── TOP HUD: VIBRANT GLOWING POSTURE BADGE & KNEE ANGLE ── */}
               <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleTogglePosture()}
-                  className={`px-4 py-2 rounded-2xl font-black text-xs transition-all shadow-2xl flex items-center gap-2 border-2 cursor-pointer ${
-                    sitToStandState === "STANDING"
-                      ? "bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 text-slate-950 border-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.8)] scale-105"
-                      : "bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 border-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.8)] scale-105"
-                  }`}
-                  title="Click to toggle Sit/Stand (or press Spacebar)"
-                >
-                  <span className="text-base">{sitToStandState === "STANDING" ? "🧍" : "🪑"}</span>
-                  <span className="tracking-wider">{sitToStandState} ({elevationPercent}%)</span>
-                  <span className="text-[10px] opacity-80 uppercase px-1.5 py-0.5 rounded-full bg-black/20 font-mono">
-                    Click / Space
-                  </span>
-                </button>
+                
               </div>
 
               <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
@@ -1249,18 +1213,7 @@ export default function MovementAnalysis() {
                   Live Posture & Rep Controls
                 </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleTogglePosture()}
-                    className={`py-2 px-2.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer border ${
-                      sitToStandState === "STANDING"
-                        ? "bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300"
-                        : "bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-300"
-                    }`}
-                    title="Click or press Spacebar"
-                  >
-                    <span>{sitToStandState === "STANDING" ? "🪑 Sit Down" : "🧍 Stand Up"}</span>
-                  </button>
+                  
                   <button
                     type="button"
                     onClick={() => {
