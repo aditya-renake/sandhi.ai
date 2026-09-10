@@ -146,6 +146,11 @@ export default function MovementAnalysis() {
     playPleasantChime()
     setCountdown(3)
 
+    // Pre-start the camera immediately so it is already bright and active!
+    if (useWebcam) {
+      launchCamera()
+    }
+
     const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
     speakText(prompt.countdown3, selectedLang)
 
@@ -167,9 +172,7 @@ export default function MovementAnalysis() {
       setTimeout(() => {
         setCountdown(null)
         setIsTestStarted(true)
-        if (useWebcam) {
-          launchCamera()
-        } else {
+        if (!useWebcam) {
           launchSimulation()
         }
       }, 700)
@@ -180,7 +183,7 @@ export default function MovementAnalysis() {
     try {
       setCameraError("")
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
         audio: false,
       })
       streamRef.current = stream
@@ -189,16 +192,57 @@ export default function MovementAnalysis() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        videoRef.current.play()
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play().catch(() => {})
+        }
+        videoRef.current.play().catch(() => {})
       }
 
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
       animFrameId.current = requestAnimationFrame(() => processFrame())
     } catch (err) {
-      setCameraError("Camera unavailable. Using High-Speed Biomechanics Detection Simulator.")
+      console.warn("Camera access fallback to simulation:", err)
+      setCameraError("Camera unavailable. Using Biomechanics Detection Simulator.")
       launchSimulation()
     }
   }
+
+  // Instant Posture Toggle (Click / Spacebar Trigger)
+  const handleTogglePosture = (forcedState = null) => {
+    const nextState = forcedState || (sitToStandState === "STANDING" ? "SITTING" : "STANDING")
+    if (nextState === "STANDING") {
+      setSitToStandState("STANDING")
+      lastPostureRef.current = "STANDING"
+      smoothElevationRef.current = 0.88
+      setElevationPercent(88)
+      setKneeAngle(clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 166)
+      playPleasantChime()
+    } else {
+      setSitToStandState("SITTING")
+      lastPostureRef.current = "SITTING"
+      smoothElevationRef.current = 0.12
+      setElevationPercent(12)
+      setKneeAngle(clinicalProfile === "healthy" ? 74 : clinicalProfile === "severe" ? 104 : 88)
+      setRepCount((prev) => {
+        const next = prev + 1
+        playPleasantChime()
+        speakRepPraise(next, selectedLang)
+        return next
+      })
+    }
+  }
+
+  // Global Spacebar listener for rapid testing
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === "Space" && activeMode === "TEST") {
+        e.preventDefault()
+        handleTogglePosture()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [activeMode, sitToStandState, clinicalProfile, selectedLang])
 
   const launchSimulation = () => {
     setIsSimulating(true)
@@ -208,95 +252,62 @@ export default function MovementAnalysis() {
   }
 
   // ── REAL COMPUTER VISION SITTING VS STANDING ANALYZER ──
+  const minObsYRef = useRef(0.20)
+  const maxObsYRef = useRef(0.60)
+
   const analyzeWebcamBodyY = (video) => {
     if (!video || video.readyState < 2) return null
     if (!offscreenCanvasRef.current && typeof document !== "undefined") {
       const oc = document.createElement("canvas")
-      oc.width = 120
-      oc.height = 90
+      oc.width = 160
+      oc.height = 120
       offscreenCanvasRef.current = oc
     }
     const offCanvas = offscreenCanvasRef.current
     if (!offCanvas) return null
     const offCtx = offCanvas.getContext("2d", { willReadFrequently: true })
 
-    offCtx.drawImage(video, 0, 0, 120, 90)
-    const frameData = offCtx.getImageData(0, 0, 120, 90).data
+    try {
+      offCtx.drawImage(video, 0, 0, 160, 120)
+      const imgData = offCtx.getImageData(0, 0, 160, 120)
+      const frameData = imgData.data
 
-    let totalWeight = 0
-    let weightedYSum = 0
-    let topHeadY = 90
+      let totalWeight = 0
+      let weightedYSum = 0
+      let highestHeadY = 120
 
-    // Scan vertical rows in the central 60% horizontal region (x: 24 to 96)
-    for (let y = 6; y < 86; y++) {
-      let rowContrast = 0
-      for (let x = 24; x < 96; x += 3) {
-        const idx = (y * 120 + x) * 4
-        const r = frameData[idx]
-        const g = frameData[idx + 1]
-        const b = frameData[idx + 2]
+      // Scan rows from top to bottom (y: 6 to 114) in central region (x: 24 to 136)
+      for (let y = 6; y < 114; y += 2) {
+        let rowContrast = 0
+        for (let x = 28; x < 132; x += 4) {
+          const idx = (y * 160 + x) * 4
+          const r = frameData[idx]
+          const g = frameData[idx + 1]
+          const b = frameData[idx + 2]
 
-        const nextIdx = (y * 120 + (x + 3)) * 4
-        const r2 = frameData[nextIdx]
-        const g2 = frameData[nextIdx + 1]
-        const b2 = frameData[nextIdx + 2]
+          const nextIdx = (y * 160 + Math.min(159, x + 4)) * 4
+          const diff = Math.abs(r - frameData[nextIdx]) + Math.abs(g - frameData[nextIdx + 1]) + Math.abs(b - frameData[nextIdx + 2])
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b
 
-        const grad = Math.abs(r - r2) + Math.abs(g - g2) + Math.abs(b - b2)
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b
+          if (diff > 10 || (lum > 25 && lum < 235)) {
+            rowContrast += diff + 5
+          }
+        }
 
-        // Human body contours & luminance
-        if (grad > 15 || (lum > 20 && lum < 240)) {
-          rowContrast += grad + 10
+        if (rowContrast > 40) {
+          if (y < highestHeadY) highestHeadY = y
+          const weight = (120 - y) * 1.5 + rowContrast
+          weightedYSum += y * weight
+          totalWeight += weight
         }
       }
 
-      if (rowContrast > 200) {
-        if (y < topHeadY) topHeadY = y
-        totalWeight += rowContrast
-        weightedYSum += y * rowContrast
-      }
+      if (totalWeight === 0) return null
+      const centroidY = weightedYSum / totalWeight
+      return (highestHeadY * 0.55 + centroidY * 0.45) / 120.0
+    } catch {
+      return null
     }
-
-    if (totalWeight === 0) return null
-    const centroidY = weightedYSum / totalWeight
-    return topHeadY * 0.60 + centroidY * 0.40
-  }
-
-  // Calibration Helpers
-  const handleCalibrateSitting = () => {
-    if (videoRef.current) {
-      const currentY = analyzeWebcamBodyY(videoRef.current)
-      if (currentY !== null) {
-        sittingBaselineYRef.current = currentY
-        setCalibrationNotice("Seated Baseline Calibrated!")
-        setTimeout(() => setCalibrationNotice(""), 3000)
-      }
-    }
-    setSitToStandState("SITTING")
-    lastPostureRef.current = "SITTING"
-    smoothElevationRef.current = 0.12
-  }
-
-  const handleCalibrateStanding = () => {
-    if (videoRef.current) {
-      const currentY = analyzeWebcamBodyY(videoRef.current)
-      if (currentY !== null) {
-        standingBaselineYRef.current = currentY
-        setCalibrationNotice("Standing Baseline Calibrated!")
-        setTimeout(() => setCalibrationNotice(""), 3000)
-      }
-    }
-    setSitToStandState("STANDING")
-    lastPostureRef.current = "STANDING"
-    smoothElevationRef.current = 0.88
-  }
-
-  const handleResetCalibration = () => {
-    sittingBaselineYRef.current = null
-    standingBaselineYRef.current = null
-    smoothElevationRef.current = 0.2
-    setCalibrationNotice("Height Calibration Reset & Auto-learning...")
-    setTimeout(() => setCalibrationNotice(""), 3000)
   }
 
   // ── PROCESS FRAME WITH REAL WEBCAM VISION & ADAPTIVE SKELETON ──
@@ -313,36 +324,21 @@ export default function MovementAnalysis() {
     const isLiveWebcam = cameraActive && !isSimulating && videoRef.current
 
     if (isLiveWebcam) {
-      const observedY = analyzeWebcamBodyY(videoRef.current)
+      const normY = analyzeWebcamBodyY(videoRef.current)
 
-      if (observedY !== null) {
-        // Initialize baselines dynamically on first frames
-        if (sittingBaselineYRef.current === null) {
-          sittingBaselineYRef.current = observedY
-          standingBaselineYRef.current = Math.max(8, observedY - 24)
-        }
+      if (normY !== null) {
+        if (normY < minObsYRef.current) minObsYRef.current = Math.max(0.08, normY)
+        if (normY > maxObsYRef.current) maxObsYRef.current = Math.min(0.92, normY)
 
-        // Expand range as the user stands up or sits down
-        if (observedY > sittingBaselineYRef.current) {
-          sittingBaselineYRef.current = observedY
-        }
-        if (observedY < standingBaselineYRef.current) {
-          standingBaselineYRef.current = Math.min(standingBaselineYRef.current, observedY)
-        }
+        const span = Math.max(0.12, maxObsYRef.current - minObsYRef.current)
+        const rawElev = Math.max(0, Math.min(1, (maxObsYRef.current - normY) / span))
 
-        const span = Math.max(14, sittingBaselineYRef.current - standingBaselineYRef.current)
-        // Standing = near top (observedY small) -> rawElev ~ 1.0
-        // Sitting = lower down (observedY large) -> rawElev ~ 0.0
-        const rawElev = Math.max(0, Math.min(1, (sittingBaselineYRef.current - observedY) / span))
-
-        // Exponential smoothing filter
-        smoothElevationRef.current = 0.72 * smoothElevationRef.current + 0.28 * rawElev
+        smoothElevationRef.current = 0.65 * smoothElevationRef.current + 0.35 * rawElev
         elevation = smoothElevationRef.current
       } else {
         elevation = smoothElevationRef.current
       }
     } else {
-      // High-speed simulation fallback if camera is not active or user chose simulation
       const speedDivisor = clinicalProfile === "healthy" ? 210 : clinicalProfile === "severe" ? 540 : 330
       const t = simulatedProgress !== null ? simulatedProgress : Date.now() / speedDivisor
       elevation = (Math.sin(t) + 1) / 2
@@ -353,9 +349,9 @@ export default function MovementAnalysis() {
 
     // Determine Posture with hysteresis
     let currentPosture = lastPostureRef.current
-    if (elevation >= 0.58) {
+    if (elevation >= 0.52) {
       currentPosture = "STANDING"
-    } else if (elevation <= 0.38) {
+    } else if (elevation <= 0.40) {
       currentPosture = "SITTING"
     }
 
@@ -367,9 +363,8 @@ export default function MovementAnalysis() {
       lastPostureRef.current = "SITTING"
       setSitToStandState("SITTING")
 
-      // Rep is completed when user stands all the way up and sits back down!
       const now = Date.now()
-      if (now - repCooldownRef.current > 800) {
+      if (now - repCooldownRef.current > 700) {
         repCooldownRef.current = now
         setRepCount((prevReps) => {
           const nextReps = prevReps + 1
@@ -404,13 +399,12 @@ export default function MovementAnalysis() {
 
     // ── DRAW COMPUTER VISION SKELETON OVERLAY ──
     const bodyCenter = width * 0.50
-    // Dynamic vertical positions anchored to user elevation:
     const hipY = height * (0.38 - elevation * 0.12)
     const kneeY = height * (0.68 - elevation * 0.10)
     const ankleY = height * 0.88
     const headY = height * (0.16 - elevation * 0.08)
 
-    const kneeOffset = (1 - elevation) * 38 // Knee bends outwards when sitting
+    const kneeOffset = (1 - elevation) * 38
 
     const hip = { x: bodyCenter + 15, y: hipY }
     const knee = { x: bodyCenter + 20 + kneeOffset, y: kneeY }
@@ -422,7 +416,7 @@ export default function MovementAnalysis() {
 
     // Draw Pelvis line
     ctx.lineWidth = 4
-    ctx.strokeStyle = "#0d9488"
+    ctx.strokeStyle = "#00f5ff"
     ctx.lineCap = "round"
     ctx.beginPath()
     ctx.moveTo(leftHip.x, leftHip.y)
@@ -431,8 +425,8 @@ export default function MovementAnalysis() {
 
     // Draw Right Leg
     ctx.beginPath()
-    ctx.strokeStyle = currentPosture === "STANDING" ? "#16a34a" : "#ea580c"
-    ctx.lineWidth = 5
+    ctx.strokeStyle = currentPosture === "STANDING" ? "#10b981" : "#f59e0b"
+    ctx.lineWidth = 6
     ctx.moveTo(hip.x, hip.y)
     ctx.lineTo(knee.x, knee.y)
     ctx.lineTo(ankle.x, ankle.y)
@@ -440,22 +434,22 @@ export default function MovementAnalysis() {
 
     // Draw Left Leg
     ctx.beginPath()
-    ctx.strokeStyle = "#0d9488"
+    ctx.strokeStyle = "#06b6d4"
     ctx.lineWidth = 4
     ctx.moveTo(leftHip.x, leftHip.y)
     ctx.lineTo(leftKnee.x, leftKnee.y)
     ctx.lineTo(leftAnkle.x, leftAnkle.y)
     ctx.stroke()
 
-    // Draw Landmarks
+    // Draw Landmarks with vibrant neon glowing markers
     const landmarks = [
       { pt: { x: bodyCenter, y: headY }, label: "Head", color: "#38bdf8" },
-      { pt: hip, label: "Hip", color: "#0d9488" },
-      { pt: knee, label: `Knee: ${currentFlexAngle}°`, color: currentPosture === "STANDING" ? "#16a34a" : "#ea580c" },
-      { pt: ankle, label: "Ankle", color: "#0d9488" },
-      { pt: leftHip, label: "L.Hip", color: "#0d9488" },
-      { pt: leftKnee, label: "L.Knee", color: "#0d9488" },
-      { pt: leftAnkle, label: "L.Ankle", color: "#0d9488" }
+      { pt: hip, label: "Hip", color: "#06b6d4" },
+      { pt: knee, label: `Knee: ${currentFlexAngle}°`, color: currentPosture === "STANDING" ? "#10b981" : "#f59e0b" },
+      { pt: ankle, label: "Ankle", color: "#06b6d4" },
+      { pt: leftHip, label: "L.Hip", color: "#06b6d4" },
+      { pt: leftKnee, label: "L.Knee", color: "#06b6d4" },
+      { pt: leftAnkle, label: "L.Ankle", color: "#06b6d4" }
     ]
 
     landmarks.forEach(({ pt, label, color }) => {
@@ -463,64 +457,59 @@ export default function MovementAnalysis() {
       ctx.beginPath()
       ctx.arc(pt.x, pt.y, 6, 0, 2 * Math.PI)
       ctx.fill()
-      ctx.lineWidth = 2.5
-      ctx.strokeStyle = color || "#0f766e"
+      ctx.lineWidth = 3
+      ctx.strokeStyle = color || "#06b6d4"
       ctx.stroke()
 
       ctx.fillStyle = "#f8fafc"
-      ctx.font = "bold 10px Inter, sans-serif"
-      ctx.fillText(label, pt.x + 8, pt.y + 3)
+      ctx.font = "bold 11px Inter, sans-serif"
+      ctx.fillText(label, pt.x + 8, pt.y + 4)
     })
 
-    // ── DRAW ON-SCREEN REAL-TIME VERTICAL ELEVATION GAUGE ──
+    // ── VIBRANT REAL-TIME VERTICAL ELEVATION GAUGE ──
     const gaugeX = 22
-    const gaugeY = 60
-    const gaugeW = 12
-    const gaugeH = 180
+    const gaugeY = 70
+    const gaugeW = 14
+    const gaugeH = 170
 
     // Gauge background track
-    ctx.fillStyle = "rgba(15, 23, 42, 0.75)"
+    ctx.fillStyle = "rgba(15, 23, 42, 0.85)"
     ctx.beginPath()
     ctx.roundRect(gaugeX - 4, gaugeY - 6, gaugeW + 8, gaugeH + 12, 8)
     ctx.fill()
-    ctx.strokeStyle = "rgba(51, 65, 85, 0.8)"
+    ctx.strokeStyle = "rgba(14, 165, 233, 0.6)"
     ctx.lineWidth = 1.5
     ctx.stroke()
 
     // Stand Zone (top 42%)
-    ctx.fillStyle = "rgba(22, 163, 74, 0.35)"
-    ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH * 0.42)
+    ctx.fillStyle = "rgba(16, 185, 129, 0.4)"
+    ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH * 0.45)
 
     // Sit Zone (bottom 42%)
-    ctx.fillStyle = "rgba(234, 88, 12, 0.35)"
-    ctx.fillRect(gaugeX, gaugeY + gaugeH * 0.58, gaugeW, gaugeH * 0.42)
+    ctx.fillStyle = "rgba(245, 158, 11, 0.4)"
+    ctx.fillRect(gaugeX, gaugeY + gaugeH * 0.55, gaugeW, gaugeH * 0.45)
 
     // Dynamic elevation fill
     const fillH = gaugeH * elevation
-    ctx.fillStyle = currentPosture === "STANDING" ? "#22c55e" : "#f97316"
+    ctx.fillStyle = currentPosture === "STANDING" ? "#10b981" : "#f59e0b"
     ctx.fillRect(gaugeX, gaugeY + gaugeH - fillH, gaugeW, fillH)
 
     // Current Indicator Pointer
     const pointerY = gaugeY + gaugeH - fillH
     ctx.fillStyle = "#38bdf8"
     ctx.beginPath()
-    ctx.arc(gaugeX + gaugeW / 2, pointerY, 6, 0, 2 * Math.PI)
+    ctx.arc(gaugeX + gaugeW / 2, pointerY, 7, 0, 2 * Math.PI)
     ctx.fill()
     ctx.strokeStyle = "#ffffff"
     ctx.lineWidth = 2
     ctx.stroke()
 
     // Gauge Labels
-    ctx.font = "bold 9px Inter, sans-serif"
-    ctx.fillStyle = "#4ade80"
-    ctx.fillText("STAND", gaugeX + gaugeW + 6, gaugeY + 12)
-    ctx.fillStyle = "#fb923c"
-    ctx.fillText("SIT", gaugeX + gaugeW + 6, gaugeY + gaugeH - 4)
-
-    // Mode Watermark on Canvas
     ctx.font = "bold 10px Inter, sans-serif"
-    ctx.fillStyle = isLiveWebcam ? "#2dd4bf" : "#94a3b8"
-    ctx.fillText(isLiveWebcam ? "● CAMERA VISION TRACKING" : "● SIMULATED KINEMATICS", 55, 32)
+    ctx.fillStyle = "#34d399"
+    ctx.fillText("STAND", gaugeX + gaugeW + 8, gaugeY + 14)
+    ctx.fillStyle = "#fbbf24"
+    ctx.fillText("SIT", gaugeX + gaugeW + 8, gaugeY + gaugeH - 4)
 
     if ((isTestStarted || isSimulating) && !testComplete) {
       animFrameId.current = requestAnimationFrame(() => processFrame())
@@ -909,14 +898,21 @@ export default function MovementAnalysis() {
         {activeMode === "TEST" && (
           <div className="grid gap-6 lg:grid-cols-3">
             
-            {/* Live Camera Box */}
-            <div className="lg:col-span-2 relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg aspect-4/3 flex items-center justify-center">
+            {/* Live Camera Box with Vibrant Catchy Neon Accents */}
+            <div className={`lg:col-span-2 relative rounded-3xl overflow-hidden bg-slate-950 border-3 transition-all duration-300 aspect-4/3 flex items-center justify-center ${
+              sitToStandState === "STANDING"
+                ? "border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.4)]"
+                : "border-amber-400 shadow-[0_0_40px_rgba(245,158,11,0.4)]"
+            }`}>
               
               <video
                 ref={videoRef}
                 playsInline
                 muted
-                className={`absolute inset-0 w-full h-full object-cover transform -scale-x-100 ${cameraActive && !isSimulating ? "opacity-85" : "hidden"}`}
+                autoPlay
+                className={`absolute inset-0 w-full h-full object-cover transform -scale-x-100 ${
+                  cameraActive && !isSimulating ? "opacity-90" : "hidden"
+                }`}
               />
 
               <canvas
@@ -926,42 +922,46 @@ export default function MovementAnalysis() {
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               />
 
-              {/* 3-2-1 COUNTDOWN OVERLAY (User Request: "ask first like start now test before starting 30 sec timer") */}
+              {/* 3-2-1 COUNTDOWN OVERLAY */}
               {countdown !== null && (
-                <div className="absolute inset-0 z-40 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
-                  <p className="text-xs uppercase tracking-widest text-teal-400 font-bold mb-2">Get Into Position &bull; Arms Crossed</p>
-                  <span className="text-8xl font-black font-mono animate-bounce text-amber-400">{countdown}</span>
-                  <p className="text-xs text-slate-300 mt-4">Starting 30-Second Chair Stand Test...</p>
+                <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+                  <p className="text-xs uppercase tracking-widest text-cyan-400 font-black mb-2 animate-pulse">
+                    Get Into Position &bull; Arms Crossed Across Chest
+                  </p>
+                  <span className="text-9xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-tr from-amber-400 via-orange-400 to-yellow-300 drop-shadow-[0_0_35px_rgba(251,191,36,0.8)] animate-bounce">
+                    {countdown}
+                  </span>
+                  <p className="text-xs text-slate-300 mt-4 font-semibold">Starting 30-Second Chair Stand Test...</p>
                 </div>
               )}
 
-              {/* 10 REPETITIONS CELEBRATION MODAL (User Request: "test should automatically end after 10 repetitions are done") */}
+              {/* 10 REPETITIONS CELEBRATION MODAL */}
               {testComplete && (
-                <div className="absolute inset-0 z-40 bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-3xl mb-3">
+                <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center text-white">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 border-4 border-white flex items-center justify-center text-4xl mb-4 shadow-[0_0_40px_rgba(16,185,129,0.8)] animate-bounce">
                     🎉
                   </div>
-                  <span className="rounded-full bg-emerald-500/20 text-emerald-400 px-3 py-0.5 text-xs font-bold uppercase tracking-wider mb-1">
-                    {completionReason === "10_REPS" ? "10 Repetitions Completed!" : "30s Time Limit Complete"}
+                  <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400 px-4 py-1 text-xs font-black uppercase tracking-wider mb-2">
+                    {completionReason === "10_REPS" ? "Goal Achieved: 10 Repetitions Completed!" : "30s Assessment Complete"}
                   </span>
-                  <h3 className="text-2xl font-black text-white">
-                    {completionReason === "10_REPS" ? "Goal Achieved: 10/10 Reps!" : "Time Finished!"}
+                  <h3 className="text-3xl font-black text-white">
+                    {completionReason === "10_REPS" ? "10/10 Reps Finished!" : "Time Complete!"}
                   </h3>
-                  <p className="text-xs text-slate-300 max-w-sm mt-1.5 leading-relaxed">
+                  <p className="text-xs text-slate-300 max-w-sm mt-2 leading-relaxed">
                     Knee kinematics, flexion range ({kneeAngle}°), and quadriceps endurance successfully measured.
                   </p>
 
                   <div className="mt-6 flex gap-3">
                     <button
                       onClick={continueToAIAnalysis}
-                      className="rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-3 font-bold text-white text-xs shadow-lg hover:from-teal-600 hover:to-emerald-700 transition cursor-pointer flex items-center gap-2"
+                      className="rounded-2xl bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 px-7 py-3.5 font-black text-slate-950 text-xs shadow-[0_0_25px_rgba(45,212,191,0.6)] hover:brightness-110 transition cursor-pointer flex items-center gap-2"
                     >
                       <span>Proceed to AI Analysis</span>
                       <span>→</span>
                     </button>
                     <button
                       onClick={() => triggerStartTest(cameraActive && !isSimulating)}
-                      className="rounded-xl border border-slate-700 px-4 py-3 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                      className="rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-3.5 text-xs font-bold text-slate-300 hover:bg-slate-800 transition cursor-pointer"
                     >
                       Retest
                     </button>
@@ -969,264 +969,176 @@ export default function MovementAnalysis() {
                 </div>
               )}
 
-              {/* Vision Calibration Notification */}
-              {calibrationNotice && (
-                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-teal-950/95 border border-teal-400 text-teal-200 text-xs font-bold shadow-xl animate-pulse">
-                  {calibrationNotice}
-                </div>
-              )}
+              {/* ── TOP HUD: VIBRANT GLOWING POSTURE BADGE & KNEE ANGLE ── */}
+              <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePosture()}
+                  className={`px-4 py-2 rounded-2xl font-black text-xs transition-all shadow-2xl flex items-center gap-2 border-2 cursor-pointer ${
+                    sitToStandState === "STANDING"
+                      ? "bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 text-slate-950 border-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.8)] scale-105"
+                      : "bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 border-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.8)] scale-105"
+                  }`}
+                  title="Click to toggle Sit/Stand (or press Spacebar)"
+                >
+                  <span className="text-base">{sitToStandState === "STANDING" ? "🧍" : "🪑"}</span>
+                  <span className="tracking-wider">{sitToStandState} ({elevationPercent}%)</span>
+                  <span className="text-[10px] opacity-80 uppercase px-1.5 py-0.5 rounded-full bg-black/20 font-mono">
+                    Click / Space
+                  </span>
+                </button>
+              </div>
 
-              {/* HUD OVERLAYS */}
-              {/* Quick Clinical Profile Selector Bar (Ensures dynamic test results) */}
-              <div className="absolute top-4 left-24 right-24 z-30 flex justify-center gap-1.5 pointer-events-auto">
-                <div className="bg-slate-900/90 backdrop-blur-md rounded-xl p-1 border border-slate-700 flex gap-1 shadow-lg text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClinicalProfile("healthy")
-                      setAlignmentRatio(1.02)
-                      setMinFlexion(72)
-                      setMaxExtension(174)
-                    }}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                      clinicalProfile === "healthy" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    🟢 Healthy (Low Risk)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClinicalProfile("moderate")
-                      setAlignmentRatio(1.34)
-                      setMinFlexion(92)
-                      setMaxExtension(162)
-                    }}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                      clinicalProfile === "moderate" ? "bg-orange-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    🟡 Moderate OA
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClinicalProfile("severe")
-                      setAlignmentRatio(1.58)
-                      setMinFlexion(108)
-                      setMaxExtension(148)
-                    }}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                      clinicalProfile === "severe" ? "bg-rose-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    🔴 Severe OA (High Risk)
-                  </button>
+              <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+                {/* 30s Timer with glowing digits */}
+                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-slate-700 shadow-xl flex items-center gap-2 text-xs font-bold text-white">
+                  <span className="text-slate-400 text-[11px]">Timer:</span>
+                  <span className={`text-base font-black font-mono ${
+                    timerSeconds <= 5 ? "text-rose-400 animate-ping" : timerSeconds <= 10 ? "text-amber-400" : "text-cyan-400"
+                  }`}>
+                    {timerSeconds}s
+                  </span>
+                </div>
+
+                {/* Knee Angle with Neon Cyan Glow */}
+                <div className="px-3.5 py-1.5 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-cyan-500/60 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 text-xs font-bold text-cyan-300">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span>Knee: <strong className="text-white text-sm font-mono">{kneeAngle}°</strong></span>
                 </div>
               </div>
 
-              
-              {isTestStarted && !testComplete && (
-                <>
-                  {/* Top-Left: Knee Angle Gauge */}
-                  <div className="absolute top-4 left-4 z-20 rounded-xl bg-slate-900/85 backdrop-blur-md border border-slate-700 p-3 text-white">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Live Knee Angle θ</p>
-                    <p className="text-2xl font-black text-teal-400 font-mono">{kneeAngle}°</p>
-                    <p className="text-[10px] text-slate-300">Sitting &lt;118° &bull; Standing &gt;148°</p>
-                  </div>
-
-                  {/* Top-Right: 30s Timer & Fast Sitting/Standing Badge */}
-                  <div className="absolute top-4 right-4 z-20 rounded-xl bg-slate-900/85 backdrop-blur-md border border-slate-700 p-3 text-right text-white">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-xs text-slate-400">Timer:</span>
-                      <span className="text-xl font-black font-mono text-amber-400">{timerSeconds}s</span>
-                    </div>
-                    
-                    {/* FAST CRISP STATE DETECTOR (User Request) */}
-                    <div className="mt-1 flex items-center justify-end gap-1.5">
-                      <span className="text-[10px] text-slate-400">Detected:</span>
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-black tracking-wider transition-all duration-150 ${
-                        sitToStandState === "STANDING" 
-                          ? "bg-emerald-500 text-white shadow-xs" 
-                          : "bg-orange-500 text-white shadow-xs"
-                      }`}>
-                        {sitToStandState}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bottom Progress Bar: 0 to 10 Reps */}
-                  <div className="absolute bottom-4 left-4 right-4 z-20 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700 px-4 py-3 text-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-black text-teal-400 font-mono">{repCount} / 10</span>
-                        <span className="text-xs font-bold text-white">Completed Repetitions</span>
-                      </div>
-                      <span className="text-[11px] font-mono text-teal-300">
-                        {repCount >= 10 ? "Target Reached!" : `${10 - repCount} reps remaining`}
-                      </span>
-                    </div>
-
-                    <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-300"
-                        style={{ width: `${Math.min(100, (repCount / 10) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-            </div>
-
-            {/* Vision Tracking & Posture Calibration Toolbar */}
-            <div className="lg:col-span-2 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-3">
-                <span className="flex h-3 w-3 relative shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
-                </span>
-                <div>
+              {/* Bottom Progress Bar: 0 to 10 Reps */}
+              <div className="absolute bottom-4 left-4 right-4 z-30 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-slate-800 px-4 py-3 text-white shadow-2xl">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">Posture Tracking:</span>
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
-                      sitToStandState === "STANDING" ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"
-                    }`}>
-                      {sitToStandState} ({elevationPercent}%)
+                    <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400 font-mono">
+                      {repCount} / 10
                     </span>
-                    <span className="text-[10px] text-teal-400 font-mono">
-                      {cameraActive && !isSimulating ? "Webcam Vision Active" : "Simulator Mode"}
-                    </span>
+                    <span className="text-xs font-bold text-slate-200">Reps Completed</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Stand completely to trigger green STAND (&gt;58%), sit back down to trigger SIT (&lt;38%) and count rep.
-                  </p>
+                  <span className="text-[11px] font-mono text-teal-300 font-bold">
+                    {repCount >= 10 ? "Target Reached!" : `${10 - repCount} reps to goal`}
+                  </span>
+                </div>
+
+                <div className="h-3 w-full bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-700/60">
+                  <div
+                    className="h-full bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(45,212,191,0.8)]"
+                    style={{ width: `${Math.min(100, (repCount / 10) * 100)}%` }}
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleCalibrateSitting}
-                  className="px-3 py-1.5 rounded-xl bg-orange-950 hover:bg-orange-900 text-orange-300 border border-orange-700 font-bold text-[11px] transition cursor-pointer"
-                  title="Calibrate current position as sitting"
-                >
-                  🎯 Calibrate Sitting
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCalibrateStanding}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 font-bold text-[11px] transition cursor-pointer"
-                  title="Calibrate current position as standing"
-                >
-                  🎯 Calibrate Standing
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetCalibration}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] transition cursor-pointer"
-                  title="Reset height learning"
-                >
-                  🔄 Reset
-                </button>
-              </div>
             </div>
-
-            {/* Right Column: Live Metrics */}
+            {/* Right Column: Vibrant & Catchy Live Metrics */}
             <div className="space-y-4">
               
-              <div className="rounded-xl border border-teal-200 bg-white p-3.5 shadow-xs">
-                <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider block mb-2">
-                  Interactive Test Fine-Tuning
+              {/* Interactive Telemetry Controls Card */}
+              <div className="rounded-2xl border border-teal-500/50 bg-gradient-to-br from-slate-900 via-teal-950/40 to-slate-900 p-4 shadow-lg shadow-teal-500/10">
+                <span className="text-[11px] font-black text-teal-300 uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping" />
+                  Live Posture & Rep Controls
                 </span>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePosture()}
+                    className={`py-2 px-2.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer border ${
+                      sitToStandState === "STANDING"
+                        ? "bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300"
+                        : "bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-300"
+                    }`}
+                    title="Click or press Spacebar"
+                  >
+                    <span>{sitToStandState === "STANDING" ? "🪑 Sit Down" : "🧍 Stand Up"}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setRepCount(prev => Math.min(15, prev + 1))
+                      setRepCount(prev => Math.min(10, prev + 1))
+                      playPleasantChime()
                       speakRepPraise(repCount + 1, selectedLang)
                     }}
-                    className="flex-1 py-1.5 px-2 rounded-lg bg-teal-600 text-white font-bold text-xs hover:bg-teal-700 transition cursor-pointer text-center"
+                    className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-black text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    + Count 1 Rep
+                    <span>+1 Count Rep</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRepCount(prev => Math.max(0, prev - 1))
-                    }}
-                    className="py-1.5 px-3 rounded-lg border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
-                  >
-                    - Rep
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAlignmentRatio(prev => prev > 1.3 ? 1.02 : 1.45)
-                    }}
-                    className="py-1.5 px-2.5 rounded-lg border border-teal-300 text-teal-800 font-bold text-xs hover:bg-teal-50 transition cursor-pointer"
-                    title="Toggle Varus/Normal Alignment"
-                  >
-                    ⚖️ Toggle Varus
-                  </button>
+                </div>
+                <div className="mt-2 text-[10px] text-teal-300/80 text-center font-medium">
+                  💡 Tip: Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-white font-mono font-bold">Spacebar</kbd> anytime to toggle Sit / Stand!
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              {/* Repetition Target Card */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl backdrop-blur-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Repetition Target</span>
-                  <span className="text-xs font-bold text-teal-700 font-mono">{repCount} / 10 Reps</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Repetition Target</span>
+                  <span className="text-xs font-black text-emerald-400 font-mono px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-800">
+                    {repCount} / 10 Reps
+                  </span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-slate-900 font-mono">{repCount}</span>
-                  <span className="text-xs text-slate-500">reps completed</span>
+                  <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 font-mono">
+                    {repCount}
+                  </span>
+                  <span className="text-xs text-slate-400 font-semibold">of 10 completed</span>
                 </div>
-                <p className="mt-2 text-[11px] text-slate-500">
-                  Auto-finishes immediately upon completing 10 repetitions.
+                <div className="mt-3 h-2.5 w-full bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                  <div
+                    className="h-full bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(45,212,191,0.8)]"
+                    style={{ width: `${Math.min(100, (repCount / 10) * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-slate-400">
+                  Test auto-completes and proceeds to AI analysis when you reach 10 reps.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Real-time Fast State</span>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className={`h-3 w-3 rounded-full ${sitToStandState === "STANDING" ? "bg-emerald-500 animate-pulse" : "bg-orange-500"}`} />
-                  <span className="text-lg font-black text-slate-800 tracking-wide">{sitToStandState}</span>
+              {/* Real-time Posture Card */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl backdrop-blur-md">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Current Posture</span>
+                <div className="mt-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`h-4 w-4 rounded-full ${
+                      sitToStandState === "STANDING" ? "bg-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.8)]" : "bg-amber-400 animate-pulse shadow-[0_0_12px_rgba(251,191,36,0.8)]"
+                    }`} />
+                    <span className="text-xl font-black text-white tracking-wide">{sitToStandState}</span>
+                  </div>
+                  <span className="text-xs font-bold text-cyan-400 font-mono bg-cyan-950 px-2 py-0.5 rounded-md border border-cyan-800">
+                    Elevation: {elevationPercent}%
+                  </span>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  Fast detection algorithm: &lt;118° (Sitting) &bull; &gt;148° (Standing)
+                <p className="mt-2 text-[11px] text-slate-400">
+                  Camera Vision & Elevation: &gt;52% (Standing) &bull; &lt;40% (Sitting)
                 </p>
               </div>
 
-              <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 shadow-xs">
+              {/* Multilingual Voice Coach Card */}
+              <div className="rounded-2xl border border-teal-800/80 bg-teal-950/30 p-4 shadow-md backdrop-blur-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">Audio Voice Active</span>
-                  <span className="text-xs font-bold text-teal-700 font-mono">{VOICE_PROMPTS[selectedLang]?.flag} {VOICE_PROMPTS[selectedLang]?.name}</span>
+                  <span className="text-xs font-bold text-teal-300 uppercase tracking-wide">Audio Voice Coach</span>
+                  <span className="text-xs font-bold text-teal-400 font-mono">{VOICE_PROMPTS[selectedLang]?.flag} {VOICE_PROMPTS[selectedLang]?.name}</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-600">
-                  {VOICE_PROMPTS[selectedLang]?.nativeName} voice active. Rep counts & form feedback are spoken aloud.
+                <p className="mt-1.5 text-xs text-slate-300">
+                  Real-time encouragement & counts spoken in <b>{VOICE_PROMPTS[selectedLang]?.nativeName}</b>.
                 </p>
                 <button
                   type="button"
                   onClick={() => handleSelectLang(selectedLang, true)}
-                  className="mt-2 text-[11px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 cursor-pointer"
+                  className="mt-2.5 px-3 py-1.5 rounded-lg bg-teal-900/80 hover:bg-teal-800 border border-teal-700 text-xs font-bold text-teal-200 flex items-center gap-1.5 cursor-pointer transition"
                 >
                   <span>🔊</span>
-                  <span>Test Voice Audio Now</span>
+                  <span>Test Audio Phrase</span>
                 </button>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Knee Alignment</span>
-                <p className="mt-1 text-sm font-bold text-slate-800">{alignmentStatus}</p>
-                <p className="mt-1 text-[11px] font-mono text-slate-500">Ratio: {alignmentRatio}</p>
-              </div>
-
-              <div className="pt-2 space-y-2">
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-2.5">
                 <button
                   onClick={continueToAIAnalysis}
-                  className="w-full rounded-xl bg-teal-700 py-3.5 px-4 font-bold text-white hover:bg-teal-800 transition cursor-pointer shadow-md flex items-center justify-center gap-2"
+                  className="w-full rounded-2xl bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 py-4 px-4 font-black text-slate-950 hover:brightness-110 transition cursor-pointer shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
                 >
-                  <span>Continue to AI Analysis</span>
+                  <span>Proceed to Step 3: Hardware Ingestion</span>
                   <span>→</span>
                 </button>
 
@@ -1235,15 +1147,13 @@ export default function MovementAnalysis() {
                     setActiveMode("DEMO")
                     stopCamera()
                   }}
-                  className="w-full rounded-xl border border-slate-300 py-2.5 px-4 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900/70 py-2.5 px-4 text-xs font-bold text-slate-300 hover:bg-slate-800 transition cursor-pointer"
                 >
-                  ← Replay Human Demo Video
+                  ← Replay Demonstration Video
                 </button>
               </div>
 
-            </div>
-
-          </div>
+            </div>          </div>
         )}
 
       </main>
