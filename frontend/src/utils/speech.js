@@ -19,6 +19,16 @@ export const VOICE_PROMPTS = {
     langCode: "en-US",
     previewPhrase: "Welcome to Sandhi-AI! English voice guidance is ready.",
     welcomeTutorial: "Welcome to your knee health check. Sit comfortably on your chair with arms crossed over your chest. When ready, click Start Test Now to begin our 3-2-1 countdown.",
+    videoTitle: "How a Real Human Performs the Chair Stand Test",
+    videoSubtitle: "Observe the clinician and patient: back straight, feet flat, arms crossed, and full standing extension.",
+    videoBadge: "🇬🇧 English Clinical Demo",
+    videoNarration: "This is the 30-Second Chair Stand Test. First, sit in the middle of a sturdy chair with your back straight and feet flat on the floor. Cross your arms over your chest with hands on opposite shoulders. When the test begins, stand up completely straight without using your hands to push off, and sit all the way back down smoothly. Aim to complete ten repetitions.",
+    videoSteps: [
+      "1. Sit straight on a sturdy chair with feet flat on the floor",
+      "2. Cross your arms tightly over your chest (do not push off with hands)",
+      "3. Rise to a full standing position with knees completely straight",
+      "4. Sit back down smoothly and repeat as many times as possible"
+    ],
     countdown3: "Three",
     countdown2: "Two",
     countdown1: "One",
@@ -48,6 +58,16 @@ export const VOICE_PROMPTS = {
     langCode: "hi-IN",
     previewPhrase: "सन्धि-एआई में आपका स्वागत है। मधुर हिन्दी आवाज़ तैयार है।",
     welcomeTutorial: "नमस्ते! घुटने की जांच में आपका स्वागत है। कुर्सी पर आराम से बैठें, दोनों हाथ सीने पर रखें। जब आप तैयार हों, 'Start Test Now' दबाएं।",
+    videoTitle: "चेयर स्टैंड टेस्ट कैसे करें — क्लिनिकल वीडियो",
+    videoSubtitle: "डॉक्टर और मरीज का सही तरीका देखें: पीठ सीधी, पैर जमीन पर, हाथ सीने पर और पूरा उठना।",
+    videoBadge: "🇮🇳 हिन्दी क्लिनिकल प्रदर्शन",
+    videoNarration: "यह 30 सेकंड का चेयर स्टैंड टेस्ट है। सबसे पहले एक मजबूत कुर्सी पर सीधे बैठें, और दोनों पैर जमीन पर सपाट रखें। अपने दोनों हाथ सीने पर क्रॉस करके बांध लें। टेस्ट शुरू होने पर हाथों का सहारा लिए बिना पूरी तरह सीधे खड़े हों, और फिर आराम से कुर्सी पर वापस बैठें। 10 बार पूरा करने का प्रयास करें।",
+    videoSteps: [
+      "1. कुर्सी के बीच में सीधे बैठें, दोनों पैर जमीन पर सपाट रखें",
+      "2. दोनों हाथ सीने पर बांध लें, हाथों का सहारा बिल्कुल न लें",
+      "3. घुटनों को पूरी तरह सीधा करते हुए बिल्कुल सीधे खड़े हों",
+      "4. आराम से कुर्सी पर वापस बैठें और लगातार दोहराएं"
+    ],
     countdown3: "तीन",
     countdown2: "दो",
     countdown1: "एक",
@@ -77,6 +97,16 @@ export const VOICE_PROMPTS = {
     langCode: "as-IN",
     previewPhrase: "সন্ধি-এআইলৈ আপোনাক স্বাগতম। অসমীয়া কণ্ঠ সক্ৰিয় হ'ল।",
     welcomeTutorial: "নমস্কাৰ! আপোনাক আদৰণি জনাইছোঁ। চকীখনত আৰামেৰে বহক, হাত দুখন বুকুত ৰাখক। সাজু হ'লে পৰীক্ষা আৰম্ভ কৰক।",
+    videoTitle: "চকী ষ্টেণ্ড পৰীক্ষা কেনেকৈ কৰিব লাগে — ক্লিনিকেল ভিডিঅ'",
+    videoSubtitle: "চিকিৎসক আৰু ৰোগীৰ সঠিক পদ্ধতি চাওক: পোন হৈ বহা, বুকুত হাত বন্ধা আৰু সম্পূৰ্ণ থিয় হোৱা।",
+    videoBadge: "🇮🇳 অসমীয়া ক্লিনিকেল প্ৰদৰ্শন",
+    videoNarration: "এইটো ৩০ ছেকেণ্ডৰ চকী ষ্টেণ্ড পৰীক্ষা। প্ৰথমে এখন মজবুত চকীত পোন হৈ বহক আৰু দুয়োখন ভৰি মজিয়াত সমানকৈ ৰাখক। হাত দুখন বুকুত বান্ধি লওক। পৰীক্ষা আৰম্ভ হ'লে হাতৰ সহায় নোলোৱাকৈ সম্পূৰ্ণৰূপে থিয় হওক, আৰু পুনৰ আৰামেৰে চকীত বহক। ১০ বাৰ কৰিবলৈ চেষ্টা কৰক।",
+    videoSteps: [
+      "১. মজবুত চকীত পোন হৈ বহক, দুয়োখন ভৰি মজিয়াত সমানকৈ ৰাখক",
+      "২. হাত দুখন বুকুত বান্ধি লওক, হাতৰ সহায় কেতিয়াও নলব",
+      "৩. আঁঠু আৰু কঁকাল পোন কৰি সম্পূৰ্ণৰূপে থিয় হওক",
+      "৪. পুনৰ আৰামেৰে চকীত বহক আৰু একেৰাহে দোহাৰক"
+    ],
     countdown3: "তিনি",
     countdown2: "দুই",
     countdown1: "এক",
@@ -106,6 +136,16 @@ export const VOICE_PROMPTS = {
     langCode: "bn-IN",
     previewPhrase: "সন্ধি-এআই-তে আপনাকে স্বাগতম। মিষ্টি বাংলা ভয়েস প্রস্তুত।",
     welcomeTutorial: "নমস্কার! এই সহজ হাঁটু পরীক্ষাটিতে আপনাকে স্বাগতম। হাত দুটো বুকে রাখুন এবং প্রস্তুত হলে টেস্ট শুরু করুন।",
+    videoTitle: "চেয়ার স্ট্যান্ড টেস্ট কিভাবে করবেন — ক্লিনিক্যাল ভিডিও",
+    videoSubtitle: "চিকিৎসক ও রোগীর সঠিক ভঙ্গি দেখুন: সোজা হয়ে বসা, বুকে হাত ক্রস এবং পুরো দাঁড়িয়ে ওঠা।",
+    videoBadge: "🇮🇳 বাংলা ক্লিনিক্যাল ভিডিও",
+    videoNarration: "এটি ৩০ সেকেন্ড চেয়ার স্ট্যান্ড টেস্ট। প্রথমে একটি শক্ত চেয়ারে সোজা হয়ে বসুন এবং পা দুটো মাটিতে সমানভাবে রাখুন। হাত দুটো বুকের ওপর আড়াআড়ি রাখুন। পরীক্ষা শুরু হলে হাতের সাহায্য ছাড়া পুরোপুরি টানটান হয়ে দাঁড়ান, এবং আবার চেয়ারে বসুন। ১০ বার সম্পন্ন করার চেষ্টা করুন।",
+    videoSteps: [
+      "১. শক্ত চেয়ারে সোজা হয়ে বসুন, পা দুটো মাটিতে সমানভাবে রাখুন",
+      "২. হাত দুটো বুকের ওপর ক্রস করে রাখুন, হাতের ভর দেবেন না",
+      "৩. হাঁটু পুরোপুরি সোজা করে একদম টানটান হয়ে দাঁড়ান",
+      "৪. চেয়ারে পুরোপুরি বসুন এবং একটানা ১০ বার সম্পন্ন করার চেষ্টা করুন"
+    ],
     countdown3: "তিন",
     countdown2: "দুই",
     countdown1: "এক",
@@ -135,6 +175,16 @@ export const VOICE_PROMPTS = {
     langCode: "en-IN",
     previewPhrase: "Sandhi-AI ah kan lo lawm a che. Mizo tawng hman theih a ni e.",
     welcomeTutorial: "Chibai! I khup endiknaah kan lo lawm a che. Thuthlengah ṭhu la, i kut i awmah kuangkuah rawh le. I inpeih hunah Start Test Now hmet rawh.",
+    videoTitle: "Thuthleng Din Test Neih Dan — Clinical Video",
+    videoSubtitle: "Duhthusam takin en la: thuthleng laiah ding ngilin ṭhu la, i kut awmah kuangkuah rawh.",
+    videoBadge: "🇮🇳 Mizo Zirtirna Video",
+    videoNarration: "He hi second 30 chhung thuthleng atanga din test a ni. Thuthleng nghet takah ṭhu la, i kephah chhuatah dah ngil rawh. I kut i awmah kuangkuah tlat la. Tan a nih hunah kut hman miah loin ding ngil zak la, ṭhu leh rawh. Vawi 10 tih tlin tum rawh le.",
+    videoSteps: [
+      "1. Thuthleng nghet takah ding ngilin ṭhu la, ke chhuatah dah rawh",
+      "2. I kut i awmah kuangkuah tlat rawh, kut hman phal a ni lo",
+      "3. I khup leh kawng tiding ngil zakin ding chhuak rawh",
+      "4. Thuthlengah ṭhu leh la, vawi 10 tlin tum rawh"
+    ],
     countdown3: "Pathum",
     countdown2: "Pahnih",
     countdown1: "Khat",
@@ -164,6 +214,16 @@ export const VOICE_PROMPTS = {
     langCode: "bn-IN",
     previewPhrase: "সন্ধি-এআইদা তরামনা ওকচরি। মণিপুরী খোঞ্জেল শেম-শারে।",
     welcomeTutorial: "খুরুমজরি! খোংগী হকশেল য়েংশিনবদা তরামনা ওকচরি। ফমবাক্তা তোংদুনা খুৎ অদু থবাক্তা থমসি। শেম-শাবদা Start Test Now অদু নমসি।",
+    videoTitle: "চকিদা লেপ্পগী তেস্ত পাংথোকপগী খোঞ্জেল অমসুং ভিদিও লমজিং",
+    videoSubtitle: "লমজিংবা য়েংসি: অচুম্বা চকিদা তোংবা, খুৎ থবাক্তা কুংশিনবা অমসুং খোংবু তিংথোক্তুনা লেপ্পা।",
+    videoBadge: "🇮🇳 মৈতৈলোন্ ক্লিনিকেল ভিদিও",
+    videoNarration: "মসি সেকেন্ড ৩০ গী চকিদা লেপ্পগী তেস্তনি। অহানবদা অচুম্বা চকিদা তোংদুনা ফম্মু অমসুং খোংবু লৈমাক্তা চপ চানা থম্মু। খুৎ অনী অদু থবাক্তা কুংশিনসি। তেস্ত হৌরবদা খুৎ শিজিন্নদনা খোংবু অচুম্বা ওইনা লেপ্পু, অদুগা অমুক চকীদোমদা তোংলকউ। তরা রক মপুং ফাহনসি।",
+    videoSteps: [
+      "১. অচুম্বা চকিদা তোংদুনা ফম্মু, খোংবু লৈমাক্তা চপ চানা থম্মু",
+      "২. খুৎ অনী অদু থবাক্তা কুংশিনবা, খুৎনা চকিমদা নমগনু",
+      "৩. খোংবু অচুম্বা ওইনা লেপ্পু, খোংবু মপুং ফানা তিংথোকউ",
+      "৪. চকীদোমদা অমুক তোংলকউ অমসুং তরা রক শুরসি"
+    ],
     countdown3: "অহুম",
     countdown2: "অনি",
     countdown1: "অমা",
@@ -313,4 +373,10 @@ export function speakRepPraise(repIndex, lang = "en") {
   const praiseList = langConfig.repPraise || VOICE_PROMPTS.en.repPraise
   const praiseText = praiseList[Math.min(repIndex - 1, praiseList.length - 1)] || `${repIndex}`
   speakText(praiseText, lang)
+}
+
+export function speakVideoNarration(lang = "en") {
+  const prompt = VOICE_PROMPTS[lang] || VOICE_PROMPTS.en
+  playPleasantChime()
+  speakText(prompt.videoNarration || prompt.welcomeTutorial, lang)
 }

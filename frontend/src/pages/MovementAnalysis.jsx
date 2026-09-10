@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
-import { speakText, speakRepPraise, playPleasantChime, getBestVoice, VOICE_PROMPTS } from "../utils/speech"
+import { speakText, speakRepPraise, playPleasantChime, getBestVoice, VOICE_PROMPTS, speakVideoNarration } from "../utils/speech"
 
 export default function MovementAnalysis() {
   const navigate = useNavigate()
@@ -16,6 +16,18 @@ export default function MovementAnalysis() {
   // Modes: 'DEMO' (Human video demonstration) or 'TEST' (Active camera/simulation test)
   const [activeMode, setActiveMode] = useState("DEMO") 
   const [demoVideoSource, setDemoVideoSource] = useState("video") // 'video' or 'youtube'
+  const [videoStepIndex, setVideoStepIndex] = useState(0)
+
+  // Cycle synchronized multilingual subtitles during video demonstration
+  useEffect(() => {
+    let interval = null
+    if (activeMode === "DEMO") {
+      interval = setInterval(() => {
+        setVideoStepIndex((prev) => (prev + 1) % 4)
+      }, 3500)
+    }
+    return () => clearInterval(interval)
+  }, [activeMode])
 
   // Pre-test countdown state: null | 3 | 2 | 1 | 'GO'
   const [countdown, setCountdown] = useState(null)
@@ -52,12 +64,16 @@ export default function MovementAnalysis() {
     localStorage.setItem("sandhi_lang", langKey)
     window.dispatchEvent(new CustomEvent("sandhi_language_changed", { detail: langKey }))
 
+    // Restart video when language is changed so it synchronizes
+    if (demoVideoRef.current) {
+      demoVideoRef.current.currentTime = 0
+      demoVideoRef.current.play().catch(() => {})
+    }
+
     if (playAudio) {
       setIsPlayingVoicePreview(true)
-      playPleasantChime()
-      const prompt = VOICE_PROMPTS[langKey] || VOICE_PROMPTS.en
-      speakText(prompt.previewPhrase || prompt.welcomeTutorial, langKey)
-      setTimeout(() => setIsPlayingVoicePreview(false), 3500)
+      speakVideoNarration(langKey)
+      setTimeout(() => setIsPlayingVoicePreview(false), 4000)
     }
   }
 
@@ -464,30 +480,27 @@ export default function MovementAnalysis() {
         {/* ── MODE 1: HUMAN DEMONSTRATION VIDEO STAGE ── */}
         {activeMode === "DEMO" && (
           <div className="rounded-3xl bg-white border border-slate-200 p-6 md:p-8 shadow-sm mb-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 mb-6 gap-4">
               <div>
                 <span className="rounded-full bg-teal-100 text-teal-800 text-xs font-bold px-3 py-0.5 uppercase tracking-wider">
-                  Patient Pre-Test Demonstration
+                  {VOICE_PROMPTS[selectedLang]?.flag} {VOICE_PROMPTS[selectedLang]?.name} ({VOICE_PROMPTS[selectedLang]?.nativeName}) Clinical Video
                 </span>
                 <h3 className="mt-1 text-xl font-bold text-slate-900">
-                  How a Real Human Performs the Chair Stand Test
+                  {VOICE_PROMPTS[selectedLang]?.videoTitle || "How a Real Human Performs the Chair Stand Test"}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Observe the knee angle flexion and crossing of the arms across the chest.
+                  {VOICE_PROMPTS[selectedLang]?.videoSubtitle || "Observe the clinical demonstration before starting your camera test."}
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    playPleasantChime()
-                    speakText(VOICE_PROMPTS[selectedLang]?.welcomeTutorial, selectedLang)
-                  }}
-                  className="rounded-xl bg-pink-50 border border-pink-200 px-3.5 py-2 text-xs font-bold text-pink-800 hover:bg-pink-100 transition flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => speakVideoNarration(selectedLang)}
+                  className="rounded-xl bg-teal-700 text-white hover:bg-teal-800 px-4 py-2.5 text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
-                  <span>🌸</span>
-                  <span>Listen Tutorial in {VOICE_PROMPTS[selectedLang]?.name || "English"} ({VOICE_PROMPTS[selectedLang]?.flag})</span>
+                  <span>🔊</span>
+                  <span>Play {VOICE_PROMPTS[selectedLang]?.nativeName} Spoken Video Audio</span>
                 </button>
               </div>
             </div>
@@ -522,19 +535,37 @@ export default function MovementAnalysis() {
                     />
                   )}
 
-                  {/* Top Badge: Real Human Clinical Protocol */}
+                  {/* Top Badge: Dynamic Selected Language */}
                   <div className="absolute top-3 left-3 pointer-events-none rounded-lg bg-slate-900/90 backdrop-blur-md px-3 py-1.5 text-white flex items-center gap-2 border border-slate-700/80 shadow-md">
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-xs font-bold tracking-wide uppercase text-emerald-300">
-                      Real Human Demonstration (CDC STEADI Protocol)
+                      {VOICE_PROMPTS[selectedLang]?.videoBadge || "Clinical Demo Video"}
                     </span>
                   </div>
 
-                  {/* Form Checklist Overlay */}
-                  <div className="absolute bottom-3 left-3 right-3 pointer-events-none hidden sm:flex justify-between items-center bg-slate-900/90 backdrop-blur-md rounded-xl px-3.5 py-2 border border-slate-700 text-[11px] text-white shadow-md">
-                    <span className="text-teal-300 font-bold">✓ Arms Folded Over Chest</span>
-                    <span className="text-emerald-300 font-bold">✓ Stand Completely Straight</span>
-                    <span className="text-amber-300 font-bold">✓ No Hand Push</span>
+                  {/* Top Right: Native Language Voice Narration Button */}
+                  <button
+                    type="button"
+                    onClick={() => speakVideoNarration(selectedLang)}
+                    className="absolute top-3 right-3 rounded-lg bg-teal-600/95 hover:bg-teal-500 backdrop-blur-md px-3 py-1.5 text-white text-xs font-bold flex items-center gap-1.5 border border-teal-400/50 shadow-lg cursor-pointer transition"
+                    title={`Hear video narration in ${VOICE_PROMPTS[selectedLang]?.name}`}
+                  >
+                    <span>🔊</span>
+                    <span>{VOICE_PROMPTS[selectedLang]?.nativeName} Audio</span>
+                  </button>
+
+                  {/* Synchronized Real-time Subtitles in Selected Language */}
+                  <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1.5 bg-slate-900/95 backdrop-blur-md rounded-xl p-3 border border-slate-700 shadow-xl">
+                    <div className="flex items-center justify-between text-[10px] text-teal-400 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-ping" />
+                        Subtitles ({VOICE_PROMPTS[selectedLang]?.name} - {VOICE_PROMPTS[selectedLang]?.nativeName})
+                      </span>
+                      <span className="text-slate-400">Step {videoStepIndex + 1} of 4</span>
+                    </div>
+                    <p className="text-xs font-semibold text-white leading-snug">
+                      {VOICE_PROMPTS[selectedLang]?.videoSteps?.[videoStepIndex] || VOICE_PROMPTS.en.videoSteps[0]}
+                    </p>
                   </div>
                 </div>
 
