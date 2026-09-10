@@ -432,8 +432,6 @@ export default function MovementAnalysis() {
     }
   }
 
-    }
-
   
 
   const launchSimulation = () => {
@@ -557,16 +555,16 @@ export default function MovementAnalysis() {
       currentPosture = "SITTING"
     }
 
-    // State Transition & Rep Counting
-    if (!isLiveWebcam && currentPosture === "STANDING" && lastPostureRef.current === "SITTING") {
+    // State Transition & Rep Counting (Works seamlessly with live webcam and simulation!)
+    if (currentPosture === "STANDING" && lastPostureRef.current === "SITTING") {
       lastPostureRef.current = "STANDING"
       setSitToStandState("STANDING")
-    } else if (!isLiveWebcam && currentPosture === "SITTING" && lastPostureRef.current === "STANDING") {
+    } else if (currentPosture === "SITTING" && lastPostureRef.current === "STANDING") {
       lastPostureRef.current = "SITTING"
       setSitToStandState("SITTING")
 
       const now = Date.now()
-      if (now - repCooldownRef.current > 700) {
+      if (now - repCooldownRef.current > 600) {
         repCooldownRef.current = now
         setRepCount((prevReps) => {
           const nextReps = prevReps + 1

@@ -297,8 +297,23 @@ export function getBestVoice(targetLang = "en") {
   }
 
   if (targetLang === "as") {
-    const asVoice = cleanVoices.find(v => v.lang.toLowerCase().startsWith("as") || v.lang.toLowerCase().startsWith("bn") || v.name.includes("বাংলা") || v.name.includes("Lekha") || v.name.includes("Neerja"))
+    // Look for explicit Assamese, Bengali, or Indian voice
+    const asVoice = cleanVoices.find(v => 
+      v.lang.toLowerCase().startsWith("as") || 
+      v.lang.toLowerCase().startsWith("bn") || 
+      v.lang.toLowerCase().includes("hi") ||
+      v.name.includes("বাংলা") || 
+      v.name.includes("Bengali") || 
+      v.name.includes("Tanishaa") || 
+      v.name.includes("Bashkar") ||
+      v.name.includes("Lekha") || 
+      v.name.includes("Neerja") ||
+      v.name.includes("Swara")
+    )
     if (asVoice) return asVoice
+    // Return any Indian language voice before English
+    const anyIndic = cleanVoices.find(v => v.lang.toLowerCase().includes("in"))
+    if (anyIndic) return anyIndic
   }
 
   if (targetLang === "mni") {
@@ -351,10 +366,15 @@ export function speakText(text, lang = "en") {
     
     if (bestVoice) {
       utterance.voice = bestVoice
-      utterance.lang = bestVoice.lang
+      // Never set utterance.lang to as-IN since browsers drop it: use bestVoice.lang or bn-IN
+      utterance.lang = (lang === "as" || lang === "mni") ? (bestVoice.lang || "bn-IN") : bestVoice.lang
     } else {
-      const langConfig = VOICE_PROMPTS[lang] || VOICE_PROMPTS.en
-      utterance.lang = langConfig.langCode || "en-US"
+      if (lang === "as" || lang === "mni") {
+        utterance.lang = "bn-IN" // Bengali TTS engine natively speaks Eastern Indic script
+      } else {
+        const langConfig = VOICE_PROMPTS[lang] || VOICE_PROMPTS.en
+        utterance.lang = langConfig.langCode || "en-US"
+      }
     }
 
     // Tuning for a calm, friendly, empathetic healthcare assistant
