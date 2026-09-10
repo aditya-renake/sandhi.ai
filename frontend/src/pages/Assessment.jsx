@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { 
   ArrowLeft, 
@@ -10,7 +10,8 @@ import {
   Footprints, 
   Flame, 
   HeartPulse, 
-  ClipboardCheck 
+  ClipboardCheck,
+  FileText
 } from "lucide-react"
 
 function Assessment() {
@@ -20,7 +21,30 @@ function Assessment() {
   const [stiffness, setStiffness] = useState("")
   const [mobility, setMobility] = useState("")
   const [activity, setActivity] = useState("")
+  const [medicalHistory, setMedicalHistory] = useState("")
   const [validationError, setValidationError] = useState("")
+
+  useEffect(() => {
+    try {
+      const savedAssessment = localStorage.getItem("oaAssessment")
+      if (savedAssessment) {
+        const parsed = JSON.parse(savedAssessment)
+        if (parsed.medicalHistory) {
+          setMedicalHistory(parsed.medicalHistory)
+          return
+        }
+      }
+      const savedPatient = localStorage.getItem("sandhi_patient")
+      if (savedPatient) {
+        const parsed = JSON.parse(savedPatient)
+        if (parsed.symptoms) {
+          setMedicalHistory(parsed.symptoms)
+        }
+      }
+    } catch (e) {
+      // ignore JSON parse errors
+    }
+  }, [])
 
   const getPainCategory = (val) => {
     const num = Number(val)
@@ -54,6 +78,7 @@ function Assessment() {
       stiffness,
       mobility,
       activity,
+      medicalHistory: medicalHistory.trim(),
       womacScore,
       painCategory: getPainCategory(pain)?.label || "Mild Pain"
     }
@@ -359,6 +384,39 @@ function Assessment() {
                   )
                 })}
               </div>
+            </div>
+          </section>
+
+          {/* 5. PATIENT MEDICAL HISTORY */}
+          <section className="rounded-2xl bg-slate-800 border border-slate-700 shadow-xl overflow-hidden">
+            <div className="border-b border-slate-700/80 bg-slate-800/50 px-6 py-4 flex items-center gap-3">
+              <div className="p-2 bg-slate-900 rounded-lg text-teal-400">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h3 className="text-base md:text-lg font-semibold text-slate-100">
+                  Patient Medical History
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Document any previous joint injuries, surgeries, chronic illnesses, or clinical background.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <label className="mb-2 block text-xs font-semibold text-slate-300">
+                Clinical History &amp; Previous Injuries / Conditions
+              </label>
+              <textarea
+                value={medicalHistory}
+                onChange={(e) => setMedicalHistory(e.target.value)}
+                placeholder="Enter patient's medical history (e.g., prior joint trauma, knee surgeries, cartilage tear, comorbidities, daily medications, or family history of OA)..."
+                rows={4}
+                className="w-full rounded-xl bg-slate-900/60 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all resize-y"
+              />
+              <p className="mt-2 text-[11px] text-slate-500">
+                Patient-reported history is factored into comprehensive risk assessment and clinical care navigation.
+              </p>
             </div>
           </section>
 

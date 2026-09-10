@@ -86,61 +86,6 @@ function Registration() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
-          {/* Quick Preset Selector for Testing */}
-          <div className="rounded-2xl bg-slate-800/80 border border-teal-500/30 p-4">
-            <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2.5">
-              💡 Quick Patient Presets (Click to Test Different Risk Levels):
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setFullName("Priyam Barua")
-                  setAge(32)
-                  setGender("Male")
-                  setJoint("Right Knee")
-                  setOccupation("Office Executive")
-                  setSymptoms("Occasional mild stiffness after running")
-                }}
-                className="p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-950/20 hover:bg-emerald-900/30 text-emerald-300 font-semibold text-left transition cursor-pointer"
-              >
-                <span className="font-bold">🟢 Mild / Low Risk Profile</span>
-                <p className="text-[10px] text-emerald-400/80 font-normal mt-0.5">Age 32 &bull; Mild stiffness &bull; Male</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setFullName("Bimla Karmakar")
-                  setAge(58)
-                  setGender("Female")
-                  setJoint("Right Knee")
-                  setOccupation("Tea Garden Worker")
-                  setSymptoms("Morning stiffness > 30 mins, joint crepitus")
-                }}
-                className="p-2.5 rounded-xl border border-orange-500/40 bg-orange-950/20 hover:bg-orange-900/30 text-orange-300 font-semibold text-left transition cursor-pointer"
-              >
-                <span className="font-bold">🟡 Moderate OA Profile</span>
-                <p className="text-[10px] text-orange-400/80 font-normal mt-0.5">Age 58 &bull; 30m stiffness &bull; Female</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setFullName("Chandra Devi Mech")
-                  setAge(71)
-                  setGender("Female")
-                  setJoint("Bilateral Knee")
-                  setOccupation("Elderly Weaver / Homemaker")
-                  setSymptoms("Severe constant pain, unable to climb stairs, bow-leg varus")
-                }}
-                className="p-2.5 rounded-xl border border-rose-500/40 bg-rose-950/20 hover:bg-rose-900/30 text-rose-300 font-semibold text-left transition cursor-pointer"
-              >
-                <span className="font-bold">🔴 High / Advanced OA Profile</span>
-                <p className="text-[10px] text-rose-400/80 font-normal mt-0.5">Age 71 &bull; Severe pain &bull; Varus Deformity</p>
-              </button>
-            </div>
-          </div>
 
           {/* Personal Information */}
           <div className="rounded-2xl bg-slate-800 shadow-xl border border-slate-700 overflow-hidden">
@@ -183,8 +128,8 @@ function Registration() {
                   onChange={(e) => setGender(e.target.value)}
                   className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
                 >
-                  <option value="Female">Female (Higher OA Prevalence Post-Menopause)</option>
                   <option value="Male">Male</option>
+                  <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
