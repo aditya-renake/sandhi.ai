@@ -247,3 +247,4 @@ export function updateScreeningStatus(id, newStatus, newNotes = null) {
     window.dispatchEvent(new CustomEvent("sandhi_screenings_updated"))
   } catch (err) {}
 }
+export const getAllScreenings = getScreenings

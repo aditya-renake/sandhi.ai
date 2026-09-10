@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
+import ScreeningStepper from "../components/ScreeningStepper"
+import { updateScreeningStep } from "../utils/supabaseClient"
 import { speakText, speakRepPraise, playPleasantChime, getBestVoice, VOICE_PROMPTS, speakVideoNarration } from "../utils/speech"
 
 export default function MovementAnalysis() {
@@ -568,6 +570,8 @@ export default function MovementAnalysis() {
       clinicalProfile
     }
 
+    const cvScore = Math.round(Math.max(10, Math.min(95, 100 - (repCount * 4 + (romCalculated / 120) * 35))))
+    updateScreeningStep(2, movementData, cvScore)
     localStorage.setItem("sandhi_movement", JSON.stringify(movementData))
 
     navigate("/analysis", {
@@ -583,6 +587,7 @@ export default function MovementAnalysis() {
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
+      <ScreeningStepper currentStep={2} />
 
       <main className="mx-auto max-w-6xl p-4 md:p-8">
         

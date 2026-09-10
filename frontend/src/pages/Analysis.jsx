@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
+import ScreeningStepper from "../components/ScreeningStepper"
+import { updateScreeningStep } from "../utils/supabaseClient"
 import { speakText, VOICE_PROMPTS } from "../utils/speech"
 import { 
   Activity, 
@@ -297,6 +299,7 @@ export default function Analysis() {
       }
     }
 
+    updateScreeningStep(3, { bursts: burstCount, peakFreq: peakFrequencyHz, rms: rmsVibrationEnergy }, Math.round(hwScore))
     localStorage.setItem("sandhi_fused_result", JSON.stringify(fusedPayload))
     navigate("/results", { state: fusedPayload })
   }
@@ -304,6 +307,7 @@ export default function Analysis() {
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 selection:bg-teal-500 selection:text-white pb-16">
       <Navbar />
+      <ScreeningStepper currentStep={3} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
         

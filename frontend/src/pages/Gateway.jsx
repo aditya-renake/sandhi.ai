@@ -160,7 +160,7 @@ export default function Gateway() {
             {/* CTAs */}
             <div className="mt-8 pt-4 space-y-3">
               <button
-                onClick={() => navigate("/registration")}
+                onClick={() => navigate("/screening")}
                 className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-base shadow-lg shadow-teal-900/30 flex items-center justify-center gap-2 group/btn cursor-pointer transition-all active:scale-[0.99]"
               >
                 <span>Begin Patient Screening</span>

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react"
 import { addScreening } from "../utils/screeningsStore"
 import { useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
+import ScreeningStepper from "../components/ScreeningStepper"
+import { updateScreeningStep, getActiveUser } from "../utils/supabaseClient"
 
 export default function Results() {
   const navigate = useNavigate()
@@ -88,6 +90,7 @@ export default function Results() {
     }
 
     addScreening(newRecord)
+    updateScreeningStep(4, { compositeScore, riskCategory, klProxy }, compositeScore)
     setSynced(true)
   }, [compositeScore, riskCategory, klProxy, womacScore, reps, rom, alignmentRatio, varusValgus, burstCount, peakFrequency, patient])
 
@@ -104,6 +107,7 @@ export default function Results() {
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
+      <ScreeningStepper currentStep={4} />
 
       <main className="mx-auto max-w-4xl p-4 md:p-8">
         
@@ -440,12 +444,20 @@ export default function Results() {
 
         {/* Action Buttons */}
         <div className="mt-6 flex flex-col sm:flex-row justify-between gap-3">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="rounded-xl border border-slate-300 px-6 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-          >
-            ← Home Portal
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate("/screening")}
+              className="rounded-xl bg-slate-900 border border-slate-700 px-5 py-2.5 text-xs font-bold text-teal-400 hover:bg-slate-800 transition cursor-pointer flex items-center gap-1.5"
+            >
+              ← Screening Hub
+            </button>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="rounded-xl border border-slate-300 px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            >
+              Doctor Hub
+            </button>
+          </div>
 
           <div className="flex gap-2">
             <button

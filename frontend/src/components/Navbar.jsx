@@ -89,16 +89,16 @@ export default function Navbar({ onPortalChange }) {
         <div className="flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200/80 shadow-inner">
           <button
             type="button"
-            onClick={() => handlePortalSwitch("asha")}
+            onClick={() => { setPortalMode("patient"); navigate("/screening") }}
             className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
-              portalMode === "asha"
-                ? "bg-white text-teal-800 shadow-sm border border-slate-200"
+              location.pathname === "/screening" || location.pathname === "/assessment" || location.pathname === "/movement"
+                ? "bg-white text-teal-800 shadow-sm border border-slate-200 font-bold"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
             }`}
           >
             <span className="text-base">🩺</span>
-            <span className="hidden md:inline">ASHA Field Mode</span>
-            <span className="md:hidden">Field</span>
+            <span className="hidden md:inline">Citizen Screening Hub</span>
+            <span className="md:hidden">Screening</span>
           </button>
 
           <button

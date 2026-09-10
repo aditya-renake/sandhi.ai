@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
+import ScreeningStepper from "../components/ScreeningStepper"
+import { getActiveUser, getCurrentScreeningSession, updateScreeningStep } from "../utils/supabaseClient" 
 import { useNavigate } from "react-router-dom"
 import { 
   ArrowLeft, 
@@ -70,6 +72,30 @@ export default function Assessment() {
     FUNCTION_QUESTIONS.forEach(q => { init[q.id] = 2 })
     return init
   })
+
+
+  // Auto-load returning patient covariates from profile/session
+  useEffect(() => {
+    const user = getActiveUser()
+    const session = getCurrentScreeningSession()
+    const p = session?.patient || user
+    if (p) {
+      setPatientData(prev => ({
+        ...prev,
+        name: p.name || prev.name,
+        age: p.age || prev.age,
+        gender: p.gender || prev.gender,
+        state: p.state || prev.state,
+        district: p.district || prev.district,
+        joint: p.joint || prev.joint
+      }))
+      if (p.height) setHeightCm(p.height)
+      if (p.weight) setWeightKg(p.weight)
+      if (p.occupation) setOccupationType(p.occupation.toLowerCase().includes("manual") || p.occupation.toLowerCase().includes("tea") ? "manual" : "sedentary")
+      if (p.priorInjury) setPriorInjury(p.priorInjury.toLowerCase().includes("yes"))
+      if (p.familyHistory) setFamilyHistory(p.familyHistory.toLowerCase().includes("yes"))
+    }
+  }, [])
 
   // Patient Demographics & Additional Risk Factors (Sandy AI Spec Section 2)
   const [patientData, setPatientData] = useState(() => {
@@ -163,12 +189,14 @@ export default function Assessment() {
       }
     }
 
+    updateScreeningStep(1, assessmentPayload, scoring.normalizedScore)
     localStorage.setItem("sandhi_womac", JSON.stringify(assessmentPayload))
     navigate("/movement", { state: { womacScore: scoring.normalizedScore, assessmentData: assessmentPayload } })
   }
 
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 selection:bg-teal-500 selection:text-white pb-20">
+      <ScreeningStepper currentStep={1} />
       
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-6 py-4 flex items-center justify-between shadow-lg">
