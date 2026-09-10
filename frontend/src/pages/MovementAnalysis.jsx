@@ -3,6 +3,14 @@ import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import ScreeningStepper from "../components/ScreeningStepper"
 import { updateScreeningStep } from "../utils/supabaseClient"
+import { 
+  calculate3DMetricAngle, 
+  evaluateLegVisibility, 
+  validateSagittalPerspective, 
+  TemporalAngleFilter, 
+  createMediaPipePoseInstance,
+  VISIBILITY_THRESHOLD 
+} from "../utils/mediapipePoseEngine"
 import { speakText, speakRepPraise, playPleasantChime, getBestVoice, VOICE_PROMPTS, speakVideoNarration } from "../utils/speech"
 
 export default function MovementAnalysis() {
@@ -24,6 +32,15 @@ export default function MovementAnalysis() {
   const repCooldownRef = useRef(0)
   const [elevationPercent, setElevationPercent] = useState(18)
   const [calibrationNotice, setCalibrationNotice] = useState("")
+
+  // ── CLINICAL MEDIAPIPE 3D WORLD LANDMARKS & SENSOR FUSION STATES ──
+  const poseInstanceRef = useRef(null)
+  const temporalFilterRef = useRef(new TemporalAngleFilter(0.35))
+  const [modelComplexity, setModelComplexity] = useState(1) // 1 (balanced) | 2 (maximum clinical precision)
+  const [isSagittalView, setIsSagittalView] = useState(true)
+  const [sagittalNotice, setSagittalNotice] = useState("Optimal Sagittal View")
+  const [occlusionWarning, setOcclusionWarning] = useState("")
+  const [isUsingWorldLandmarks, setIsUsingWorldLandmarks] = useState(false)
 
   // Modes: 'DEMO' (Human video demonstration) or 'TEST' (Active camera/simulation test)
   const [activeMode, setActiveMode] = useState("DEMO") 
@@ -179,6 +196,145 @@ export default function MovementAnalysis() {
     }, 3000)
   }
 
+  // Initialize MediaPipe Pose with 3D World Landmarks & Temporal Smoothing
+  const initMediaPipePose = (complexity = 1) => {
+    try {
+      if (poseInstanceRef.current) {
+        poseInstanceRef.current.close?.()
+      }
+
+      const pose = createMediaPipePoseInstance(handleMediaPipeResults, complexity)
+      poseInstanceRef.current = pose
+    } catch (e) {
+      console.warn("MediaPipe Pose init notice:", e)
+    }
+  }
+
+  // Clinical MediaPipe Results Callback
+  const handleMediaPipeResults = (results) => {
+    if (!results || !results.poseLandmarks) return
+
+    // 1. Occlusion / Visibility Gating (>0.65 threshold)
+    const visEval = evaluateLegVisibility(results.poseLandmarks, "auto")
+    if (!visEval.isValid) {
+      setOcclusionWarning("⚠️ Occlusion Gated: Joint confidence < 0.65 (Keep hip/knee in view)")
+      return
+    } else {
+      setOcclusionWarning("")
+    }
+
+    // 2. Sagittal Perspective Validator (Check side-on vs frontal)
+    if (results.poseWorldLandmarks) {
+      const sagEval = validateSagittalPerspective(results.poseWorldLandmarks)
+      setIsSagittalView(sagEval.isSagittal)
+      setSagittalNotice(sagEval.status)
+    }
+
+    // 3. 3D World Metric Coordinates Angle Math (Euclidean dot product in meters)
+    let rawAngle = null
+    if (results.poseWorldLandmarks && results.poseWorldLandmarks.length >= 29) {
+      setIsUsingWorldLandmarks(true)
+      const hip = visEval.side === "right" ? results.poseWorldLandmarks[24] : results.poseWorldLandmarks[23]
+      const knee = visEval.side === "right" ? results.poseWorldLandmarks[26] : results.poseWorldLandmarks[25]
+      const ankle = visEval.side === "right" ? results.poseWorldLandmarks[28] : results.poseWorldLandmarks[27]
+      rawAngle = calculate3DMetricAngle(hip, knee, ankle)
+    } else {
+      setIsUsingWorldLandmarks(false)
+      rawAngle = calculate3DMetricAngle(visEval.hip, visEval.knee, visEval.ankle)
+    }
+
+    // 4. Temporal Smoothing (EMA Filter eliminates jitter and false flips)
+    const smoothedAngle = temporalFilterRef.current.update(rawAngle)
+    if (smoothedAngle !== null && !isNaN(smoothedAngle)) {
+      setKneeAngle(smoothedAngle)
+      setMinFlexion(prev => Math.min(prev, smoothedAngle))
+      setMaxExtension(prev => Math.max(prev, smoothedAngle))
+
+      // 5. Hysteresis State Machine for Sit/Stand Transitions
+      if (smoothedAngle >= 148 && sitToStandState !== "STANDING") {
+        setSitToStandState("STANDING")
+        lastPostureRef.current = "STANDING"
+        setElevationPercent(90)
+        playPleasantChime()
+      } else if (smoothedAngle <= 108 && sitToStandState === "STANDING") {
+        setSitToStandState("SITTING")
+        lastPostureRef.current = "SITTING"
+        setElevationPercent(15)
+        const now = Date.now()
+        if (now - repCooldownRef.current > 700) {
+          repCooldownRef.current = now
+          setRepCount(prev => {
+            const next = prev + 1
+            playPleasantChime()
+            speakRepPraise(next, selectedLang)
+            return next
+          })
+        }
+      }
+    }
+
+    // Draw Live Skeleton Overlay from MediaPipe 2D Landmarks
+    drawMediaPipeSkeleton(results.poseLandmarks, visEval.side, smoothedAngle)
+  }
+
+  // Draw real MediaPipe landmarks onto canvas overlay
+  const drawMediaPipeSkeleton = (landmarks, side, currentAngle) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    const w = canvas.width
+    const h = canvas.height
+
+    ctx.clearRect(0, 0, w, h)
+
+    const hipIdx = side === "right" ? 24 : 23
+    const kneeIdx = side === "right" ? 26 : 25
+    const ankleIdx = side === "right" ? 28 : 27
+
+    const hip = landmarks[hipIdx]
+    const knee = landmarks[kneeIdx]
+    const ankle = landmarks[ankleIdx]
+
+    if (hip && knee && ankle) {
+      const hx = hip.x * w, hy = hip.y * h
+      const kx = knee.x * w, ky = knee.y * h
+      const ax = ankle.x * w, ay = ankle.y * h
+
+      // Draw Thigh Line
+      ctx.beginPath()
+      ctx.lineWidth = 6
+      ctx.strokeStyle = sitToStandState === "STANDING" ? "#10b981" : "#f59e0b"
+      ctx.lineCap = "round"
+      ctx.moveTo(hx, hy)
+      ctx.lineTo(kx, ky)
+      ctx.stroke()
+
+      // Draw Shank Line
+      ctx.beginPath()
+      ctx.lineWidth = 6
+      ctx.strokeStyle = "#00f5ff"
+      ctx.moveTo(kx, ky)
+      ctx.lineTo(ax, ay)
+      ctx.stroke()
+
+      // Draw Joints
+      ;[[hx, hy, "#38bdf8"], [kx, ky, sitToStandState === "STANDING" ? "#10b981" : "#f59e0b"], [ax, ay, "#06b6d4"]].forEach(([x, y, color]) => {
+        ctx.beginPath()
+        ctx.arc(x, y, 7, 0, 2 * Math.PI)
+        ctx.fillStyle = "#ffffff"
+        ctx.fill()
+        ctx.lineWidth = 3
+        ctx.strokeStyle = color
+        ctx.stroke()
+      })
+
+      // Angle label at knee
+      ctx.font = "bold 13px Inter, sans-serif"
+      ctx.fillStyle = "#ffffff"
+      ctx.fillText(`${currentAngle}° (3D)`, kx + 12, ky + 4)
+    }
+  }
+
   const launchCamera = async () => {
     try {
       setCameraError("")
@@ -197,6 +353,9 @@ export default function MovementAnalysis() {
         }
         videoRef.current.play().catch(() => {})
       }
+
+      // Initialize MediaPipe Pose
+      initMediaPipePose(modelComplexity)
 
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
       animFrameId.current = requestAnimationFrame(() => processFrame())
@@ -322,6 +481,13 @@ export default function MovementAnalysis() {
 
     let elevation = 0.2
     const isLiveWebcam = cameraActive && !isSimulating && videoRef.current
+
+    // Send frame to MediaPipe Pose detector if loaded
+    if (isLiveWebcam && poseInstanceRef.current && videoRef.current.readyState >= 2) {
+      try {
+        poseInstanceRef.current.send({ image: videoRef.current })
+      } catch (e) {}
+    }
 
     if (isLiveWebcam) {
       const normY = analyzeWebcamBodyY(videoRef.current)
@@ -968,6 +1134,49 @@ export default function MovementAnalysis() {
                   </div>
                 </div>
               )}
+
+              {/* Clinical Occlusion & Gating Warning */}
+              {occlusionWarning && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-rose-950/95 border border-rose-500 text-rose-200 text-xs font-bold shadow-xl animate-bounce">
+                  {occlusionWarning}
+                </div>
+              )}
+
+              {/* Sagittal Plane & 3D World Coordinates Badges */}
+              <div className="absolute top-16 left-4 z-30 flex flex-col gap-1.5 pointer-events-none">
+                <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border flex items-center gap-1.5 backdrop-blur-md shadow-md ${
+                  isSagittalView
+                    ? "bg-emerald-950/85 border-emerald-500/60 text-emerald-300"
+                    : "bg-amber-950/90 border-amber-500/80 text-amber-200 animate-pulse"
+                }`}>
+                  <span>{isSagittalView ? "📐 Sagittal: Side-On View" : "⚠️ Frontal View (Turn 90° sideways)"}</span>
+                </div>
+
+                <div className="px-2.5 py-1 rounded-xl text-[10px] font-bold border border-cyan-500/40 bg-slate-950/85 text-cyan-300 flex items-center gap-1.5 backdrop-blur-md shadow-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                  <span>{isUsingWorldLandmarks ? "🌐 3D Metric World Landmarks" : "⚡ Temporal EMA Smoothed"}</span>
+                </div>
+              </div>
+
+              {/* Model Complexity Toggle */}
+              <div className="absolute top-16 right-4 z-30 flex items-center gap-1.5 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = modelComplexity === 1 ? 2 : 1
+                    setModelComplexity(next)
+                    initMediaPipePose(next)
+                  }}
+                  className={`px-3 py-1 rounded-xl text-[10px] font-black border transition-all cursor-pointer backdrop-blur-md shadow-lg ${
+                    modelComplexity === 2
+                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                      : "bg-slate-950/85 text-teal-300 border-teal-500/50 hover:bg-slate-900"
+                  }`}
+                  title="Toggle MediaPipe Model Complexity"
+                >
+                  <span>{modelComplexity === 2 ? "🔬 Complexity: 2 (Clinical)" : "⚡ Complexity: 1 (Live 30fps)"}</span>
+                </button>
+              </div>
 
               {/* ── TOP HUD: VIBRANT GLOWING POSTURE BADGE & KNEE ANGLE ── */}
               <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
