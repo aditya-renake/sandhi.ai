@@ -9,21 +9,44 @@ export default function Analysis() {
   const waveformCanvasRef = useRef(null)
   const animRef = useRef(null)
 
+  // Retrieve passed and stored clinical data
+  const storedPatient = localStorage.getItem("sandhi_patient")
+  const patient = location.state?.patient || (storedPatient ? JSON.parse(storedPatient) : {
+    name: "Bimla Karmakar",
+    age: 58,
+    gender: "Female",
+    state: "Assam",
+    district: "Kamrup",
+    joint: "Right Knee",
+    abhaId: "14-5829-1029-4821"
+  })
+
+  const storedWomac = localStorage.getItem("sandhi_womac")
+  const womacData = location.state?.assessmentData || (storedWomac ? JSON.parse(storedWomac) : null)
+  const womacScore = location.state?.womacScore ?? (womacData?.womacScore ?? 42)
+
   const movementResults = location.state?.movementResults
   const gait = movementResults?.gait || { value: "92%", status: "Normal Alignment" }
-  const knee = movementResults?.knee || { value: "118°", status: "Mild ROM Deficit" }
-  const posture = movementResults?.posture || { value: "10 Reps", status: "Moderate Quadriceps Endurance" }
-  const sitToStandReps = movementResults?.sitToStandReps || 10
+  const knee = movementResults?.knee || { value: "85° ROM", status: "Mild ROM Deficit" }
+  const posture = movementResults?.posture || { value: "8 Reps", status: "Moderate Quadriceps Endurance" }
+  const sitToStandReps = movementResults?.sitToStandReps ?? 8
+  const romVal = movementResults?.rom || 85
   const varusValgus = movementResults?.varusValgusAlignment || "Normal"
+  const alignmentRatio = movementResults?.alignmentRatio || 1.05
+
+  // Dynamically compute baseline acoustic parameters based on ROM and WOMAC score
+  const initialBursts = romVal < 65 || womacScore > 60 ? 7 : romVal > 100 && womacScore < 25 ? 1 : 4
+  const initialFreq = romVal < 65 || womacScore > 60 ? 235 : romVal > 100 && womacScore < 25 ? 88 : 142
 
   // Acoustic Sensor State (PDF Checklist Item 3: SandhiBand VAG)
-  const [burstCount, setBurstCount] = useState(4)
-  const [peakFrequency, setPeakFrequency] = useState(142) // Hz
+  const [burstCount, setBurstCount] = useState(initialBursts)
+  const [peakFrequency, setPeakFrequency] = useState(initialFreq) // Hz
+  const [sensorPreset, setSensorPreset] = useState(initialBursts > 5 ? "severe" : initialBursts <= 1 ? "smooth" : "moderate")
   const [isWaveformPlaying, setIsWaveformPlaying] = useState(true)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
 
   // Composite Risk Score Calculation (PDF Page 6: Composite 0-100 Algorithm)
-  const [compositeScore, setCompositeScore] = useState(62.5)
+  const [compositeScore, setCompositeScore] = useState(50)
   const [riskCategory, setRiskCategory] = useState("MODERATE")
   const [klProxy, setKlProxy] = useState(2) // KL Grade 2 proxy
   const [referralStatus, setReferralStatus] = useState("PHC Physiotherapy & Orthopedic Triage")
@@ -42,48 +65,54 @@ export default function Analysis() {
     return () => window.removeEventListener("sandhi_language_changed", onLangChange)
   }, [])
 
+  // Recalculate composite score whenever burstCount, sensorPreset, or inputs change
   useEffect(() => {
-    // Calculate composite risk based on passed biomechanical params
-    const romVal = parseInt(knee.value) || 120
-    const romDeficit = Math.max(0, 140 - romVal)
-    const cstDeficit = Math.max(0, 15 - sitToStandReps)
-    const womacApprox = 36 // standard screening baseline
-    
-    // Composite 0-100 algorithm
-    const score = Math.round(
-      (womacApprox * 0.30) + 
-      (romDeficit * 0.8) + 
-      (cstDeficit * 2.2) + 
-      (burstCount * 5.5) + 
-      (varusValgus === "Varus" ? 12 : varusValgus === "Valgus" ? 8 : 0)
-    )
-    const clampedScore = Math.min(100, Math.max(10, score))
-    setCompositeScore(clampedScore)
+    // 1. WOMAC Component (max 30 pts)
+    const womacComponent = (womacScore / 100) * 30
 
-    if (clampedScore >= 65) {
+    // 2. CST Quadriceps Endurance Deficit (max 25 pts, reference: 15 reps in 30s)
+    const cstDeficit = Math.max(0, 15 - sitToStandReps)
+    const cstComponent = Math.min(25, (cstDeficit / 15) * 25)
+
+    // 3. Knee ROM Deficit (max 20 pts, reference: 125 deg)
+    const romDeficit = Math.max(0, 125 - romVal)
+    const romComponent = Math.min(20, (romDeficit / 65) * 20)
+
+    // 4. Acoustic VAG Crepitus Component (max 15 pts)
+    const vagComponent = Math.min(15, (burstCount / 8) * 15)
+
+    // 5. Varus/Valgus Alignment Deformity Penalty (max 10 pts)
+    const alignmentPenalty = varusValgus === "Varus" ? 10 : varusValgus === "Valgus" ? 6 : 0
+
+    const score = Math.min(100, Math.max(5, Math.round(womacComponent + cstComponent + romComponent + vagComponent + alignmentPenalty)))
+    setCompositeScore(score)
+
+    if (score >= 65) {
       setRiskCategory("HIGH")
-      setKlProxy(3)
-      setReferralStatus("URGENT: District Orthopedic Specialist (GMCH/RIMS)")
-    } else if (clampedScore >= 35) {
+      setKlProxy(score >= 82 ? 4 : 3)
+      setReferralStatus("URGENT: District Orthopedic Specialist (GMCH/RIMS Triage)")
+    } else if (score >= 35) {
       setRiskCategory("MODERATE")
       setKlProxy(2)
       setReferralStatus("PHC Physiotherapy & Joint Mobility Monitoring")
     } else {
       setRiskCategory("LOW")
-      setKlProxy(1)
+      setKlProxy(score >= 20 ? 1 : 0)
       setReferralStatus("Community Lifestyle & Ergonomic Guidance")
     }
-
-    // Voice announcement
-    const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
-    speakText(prompt.crepitusNotice, selectedLang)
 
     startWaveformAnimation()
 
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current)
     }
-  }, [])
+  }, [burstCount, peakFrequency, sitToStandReps, romVal, womacScore, varusValgus])
+
+  useEffect(() => {
+    // Spoken announcement on load
+    const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
+    speakText(prompt.crepitusNotice, selectedLang)
+  }, [selectedLang])
 
   // SandhiBand Real-time Acoustic Waveform Canvas Animation
   const startWaveformAnimation = () => {
@@ -390,7 +419,29 @@ export default function Analysis() {
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
-                onClick={() => navigate("/results", { state: { compositeScore, riskCategory, klProxy, referralStatus } })}
+                onClick={() => navigate("/results", { 
+                state: { 
+                  patient,
+                  compositeScore, 
+                  riskCategory, 
+                  klProxy, 
+                  referralStatus,
+                  womacScore,
+                  movementResults: {
+                    sitToStandReps,
+                    rom: romVal,
+                    varusValgus,
+                    alignmentRatio,
+                    gait,
+                    knee,
+                    posture
+                  },
+                  vagData: {
+                    burstCount,
+                    peakFrequency
+                  }
+                } 
+              })}
                 className="w-full rounded-xl bg-gradient-to-r from-teal-700 to-emerald-700 py-3.5 px-4 font-bold text-white shadow-md hover:from-teal-800 hover:to-emerald-800 transition cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>View Full Clinical Report & PDF</span>

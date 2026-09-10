@@ -40,19 +40,28 @@ function Assessment() {
 
     setValidationError("")
 
+    // Dynamic Clinical WOMAC Calculation (0 - 100)
+    const painNum = Number(pain) || 0
+    const painComponent = (painNum / 10) * 40
+    const stiffnessComponent = stiffness === "severe" ? 25 : stiffness === "moderate" ? 15 : stiffness === "mild" ? 6 : 0
+    const mobilityComponent = mobility === "immobile" ? 25 : mobility === "assisted" ? 18 : mobility === "difficulty" ? 8 : 0
+    const activityComponent = activity === "bedridden" ? 10 : activity === "sedentary" ? 7 : activity === "moderate" ? 4 : 0
+
+    const womacScore = Math.min(100, Math.round(painComponent + stiffnessComponent + mobilityComponent + activityComponent))
+
     const assessmentData = {
       pain,
       stiffness,
       mobility,
       activity,
+      womacScore,
+      painCategory: getPainCategory(pain)?.label || "Mild Pain"
     }
 
-    localStorage.setItem(
-      "oaAssessment",
-      JSON.stringify(assessmentData)
-    )
+    localStorage.setItem("oaAssessment", JSON.stringify(assessmentData))
+    localStorage.setItem("sandhi_womac", JSON.stringify(assessmentData))
 
-    navigate("/movement")
+    navigate("/movement", { state: { womacScore, assessmentData } })
   }
 
   const painCategory = getPainCategory(pain)

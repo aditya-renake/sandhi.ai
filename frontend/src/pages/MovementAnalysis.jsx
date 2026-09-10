@@ -36,8 +36,11 @@ export default function MovementAnalysis() {
   const [isSimulating, setIsSimulating] = useState(false)
   const [cameraError, setCameraError] = useState("")
 
-  // Biomechanical States
+  // Clinical Profile & Biomechanical States (Dynamic Testing)
+  const [clinicalProfile, setClinicalProfile] = useState("moderate") // 'healthy' | 'moderate' | 'severe'
   const [kneeAngle, setKneeAngle] = useState(165)
+  const [minFlexion, setMinFlexion] = useState(88)
+  const [maxExtension, setMaxExtension] = useState(168)
   const [sitToStandState, setSitToStandState] = useState("STANDING") // 'STANDING' or 'SITTING'
   const [repCount, setRepCount] = useState(0)
   const [alignmentRatio, setAlignmentRatio] = useState(1.05)
@@ -202,12 +205,20 @@ export default function MovementAnalysis() {
 
     ctx.clearRect(0, 0, width, height)
 
-    // Fast, crisp motion cadence (~1.6 seconds per repetition)
-    const t = simulatedProgress !== null ? simulatedProgress : Date.now() / 320
+    // Dynamic Kinematics according to clinical profile:
+    // Healthy: fast 1.2s cadence, wide 72°-174° ROM (102°), normal axis (ratio ~1.02)
+    // Moderate: 2.2s cadence, 94°-162° ROM (68°), mild varus (ratio ~1.32)
+    // Severe: slow 4.5s cadence, stiff 108°-148° ROM (40°), severe varus (ratio ~1.58)
+    const speedDivisor = clinicalProfile === "healthy" ? 210 : clinicalProfile === "severe" ? 540 : 330
+    const t = simulatedProgress !== null ? simulatedProgress : Date.now() / speedDivisor
     const flexPhase = (Math.sin(t) + 1) / 2
-    // Angle swings between 88° (deep sit) and 168° (standing)
-    const currentFlexAngle = Math.round(88 + flexPhase * (168 - 88))
+
+    const lowAngle = clinicalProfile === "healthy" ? 72 : clinicalProfile === "severe" ? 108 : 92
+    const highAngle = clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 162
+    const currentFlexAngle = Math.round(lowAngle + flexPhase * (highAngle - lowAngle))
     setKneeAngle(currentFlexAngle)
+    setMinFlexion(prev => Math.min(prev, currentFlexAngle))
+    setMaxExtension(prev => Math.max(prev, currentFlexAngle))
 
     const hip = { x: width * 0.5, y: height * 0.28 }
     const kneeBendOffset = Math.sin(t) * 45
@@ -218,10 +229,9 @@ export default function MovementAnalysis() {
     const leftKnee = { x: width * 0.38 - kneeBendOffset * 0.8, y: height * 0.60 }
     const leftAnkle = { x: width * 0.40, y: height * 0.90 }
 
-    const dKnee = Math.hypot(knee.x - leftKnee.x, knee.y - leftKnee.y)
-    const dAnkle = Math.hypot(ankle.x - leftAnkle.x, ankle.y - leftAnkle.y)
-    const ratio = dAnkle > 0 ? dKnee / dAnkle : 1.0
-    setAlignmentRatio(Number(ratio.toFixed(2)))
+    const targetRatio = clinicalProfile === "healthy" ? 1.02 : clinicalProfile === "severe" ? 1.58 : 1.34
+    const ratio = Number((targetRatio + (Math.sin(t) * 0.04)).toFixed(2))
+    setAlignmentRatio(ratio)
 
     if (ratio > 1.3) {
       setAlignmentStatus("Varus (Bow-leg) — High Medial OA Risk")
@@ -315,16 +325,43 @@ export default function MovementAnalysis() {
 
   const continueToAIAnalysis = () => {
     stopCamera()
+    const storedWomac = localStorage.getItem("sandhi_womac")
+    let womacData = null
+    try {
+      womacData = storedWomac ? JSON.parse(storedWomac) : null
+    } catch (e) {}
+
+    const storedPatient = localStorage.getItem("sandhi_patient")
+    let patientData = null
+    try {
+      patientData = storedPatient ? JSON.parse(storedPatient) : null
+    } catch (e) {}
+
+    const romCalculated = Math.max(25, maxExtension - minFlexion)
+
+    const movementData = {
+      gait: { value: `${Math.round(alignmentRatio * 100)}%`, status: alignmentStatus },
+      knee: { value: `${romCalculated}° ROM`, status: romCalculated < 75 ? "Severe ROM Deficit" : romCalculated < 100 ? "Mild ROM Deficit" : "Normal ROM" },
+      posture: { value: `${repCount} Reps`, status: repCount >= 10 ? "Target 10 Reps Achieved" : `${repCount} Reps in 30s` },
+      sitToStandReps: repCount,
+      timeElapsed: Math.max(1, 30 - timerSeconds),
+      flexionAngle: minFlexion,
+      extensionAngle: maxExtension,
+      rom: romCalculated,
+      alignmentRatio: alignmentRatio,
+      alignmentStatus: alignmentStatus,
+      varusValgusAlignment: alignmentRatio > 1.3 ? "Varus" : alignmentRatio < 0.8 ? "Valgus" : "Normal",
+      clinicalProfile
+    }
+
+    localStorage.setItem("sandhi_movement", JSON.stringify(movementData))
+
     navigate("/analysis", {
       state: {
-        movementResults: {
-          gait: { value: `${Math.round(alignmentRatio * 100)}%`, status: alignmentStatus },
-          knee: { value: `${kneeAngle}°`, status: kneeAngle < 120 ? "Restricted Flexion" : "Normal Flexion" },
-          posture: { value: `${repCount} Reps`, status: repCount >= 10 ? "Target 10 Reps Achieved" : `${repCount} Reps in 30s` },
-          sitToStandReps: repCount,
-          alignmentRatio: alignmentRatio,
-          varusValgusAlignment: alignmentStatus.includes("Varus") ? "Varus" : alignmentStatus.includes("Valgus") ? "Valgus" : "Normal"
-        }
+        patient: patientData,
+        womacScore: womacData?.womacScore ?? (clinicalProfile === "healthy" ? 14 : clinicalProfile === "severe" ? 82 : 44),
+        assessmentData: womacData,
+        movementResults: movementData
       }
     })
   }
@@ -714,6 +751,55 @@ export default function MovementAnalysis() {
               )}
 
               {/* HUD OVERLAYS */}
+              {/* Quick Clinical Profile Selector Bar (Ensures dynamic test results) */}
+              <div className="absolute top-4 left-24 right-24 z-30 flex justify-center gap-1.5 pointer-events-auto">
+                <div className="bg-slate-900/90 backdrop-blur-md rounded-xl p-1 border border-slate-700 flex gap-1 shadow-lg text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClinicalProfile("healthy")
+                      setAlignmentRatio(1.02)
+                      setMinFlexion(72)
+                      setMaxExtension(174)
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                      clinicalProfile === "healthy" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🟢 Healthy (Low Risk)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClinicalProfile("moderate")
+                      setAlignmentRatio(1.34)
+                      setMinFlexion(92)
+                      setMaxExtension(162)
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                      clinicalProfile === "moderate" ? "bg-orange-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🟡 Moderate OA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClinicalProfile("severe")
+                      setAlignmentRatio(1.58)
+                      setMinFlexion(108)
+                      setMaxExtension(148)
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                      clinicalProfile === "severe" ? "bg-rose-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🔴 Severe OA (High Risk)
+                  </button>
+                </div>
+              </div>
+
+              
               {isTestStarted && !testComplete && (
                 <>
                   {/* Top-Left: Knee Angle Gauge */}
@@ -770,6 +856,43 @@ export default function MovementAnalysis() {
             {/* Right Column: Live Metrics */}
             <div className="space-y-4">
               
+              <div className="rounded-xl border border-teal-200 bg-white p-3.5 shadow-xs">
+                <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider block mb-2">
+                  Interactive Test Fine-Tuning
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRepCount(prev => Math.min(15, prev + 1))
+                      speakRepPraise(repCount + 1, selectedLang)
+                    }}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-teal-600 text-white font-bold text-xs hover:bg-teal-700 transition cursor-pointer text-center"
+                  >
+                    + Count 1 Rep
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRepCount(prev => Math.max(0, prev - 1))
+                    }}
+                    className="py-1.5 px-3 rounded-lg border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    - Rep
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAlignmentRatio(prev => prev > 1.3 ? 1.02 : 1.45)
+                    }}
+                    className="py-1.5 px-2.5 rounded-lg border border-teal-300 text-teal-800 font-bold text-xs hover:bg-teal-50 transition cursor-pointer"
+                    title="Toggle Varus/Normal Alignment"
+                  >
+                    ⚖️ Toggle Varus
+                  </button>
+                </div>
+              </div>
+
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Repetition Target</span>

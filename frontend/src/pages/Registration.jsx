@@ -1,12 +1,44 @@
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, ArrowRight, User, Stethoscope, FileText, ChevronDown } from "lucide-react"
 
 function Registration() {
   const navigate = useNavigate()
 
+  // Dynamic Patient State
+  const [fullName, setFullName] = useState("Bimla Karmakar")
+  const [age, setAge] = useState(58)
+  const [gender, setGender] = useState("Female")
+  const [phone, setPhone] = useState("9864012345")
+  const [stateName, setStateName] = useState("Assam")
+  const [district, setDistrict] = useState("Kamrup Metropolitan")
+  const [height, setHeight] = useState(156)
+  const [weight, setWeight] = useState(64)
+  const [joint, setJoint] = useState("Right Knee")
+  const [occupation, setOccupation] = useState("Tea Garden Worker / Farmer")
+  const [symptoms, setSymptoms] = useState("Morning stiffness > 30 mins, audible cracking during stair climbing")
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    navigate("/assessment")
+
+    const patientData = {
+      name: fullName || "Bimla Karmakar",
+      age: Number(age) || 58,
+      gender,
+      phone,
+      state: stateName,
+      district,
+      height: Number(height) || 156,
+      weight: Number(weight) || 64,
+      joint,
+      occupation,
+      symptoms,
+      abhaId: `14-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+      registeredAt: new Date().toISOString()
+    }
+
+    localStorage.setItem("sandhi_patient", JSON.stringify(patientData))
+    navigate("/assessment", { state: { patient: patientData } })
   }
 
   return (
@@ -23,14 +55,14 @@ function Registration() {
         </button>
         <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-900/40 text-teal-400 font-bold text-sm shadow-inner ring-1 ring-teal-500/20">
-            OA
+            SA
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-100 tracking-tight leading-tight">
-              OA Care
+              SANDHI-AI
             </h1>
             <p className="text-[10px] text-teal-400 font-medium uppercase tracking-wider">
-              Patient Registration
+              Patient Registration &bull; Step 1 of 4
             </p>
           </div>
         </div>
@@ -42,194 +74,228 @@ function Registration() {
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">
             <FileText size={14} className="text-teal-400" />
-            Step 1 of 3
+            Step 1 of 4 &bull; Clinical Onboarding
           </div>
           <h2 className="text-3xl font-bold text-slate-100 tracking-tight">
-            Register New Patient
+            Register Screening Patient
           </h2>
-          <p className="mt-3 text-slate-400 max-w-2xl text-sm md:text-base">
-            Enter the patient's basic personal and medical information to begin the AI-assisted osteoarthritis risk screening process.
+          <p className="mt-2 text-slate-400 max-w-2xl text-sm">
+            Enter the patient details. Diagnostic score, range of motion, and risk category are calculated dynamically based on these parameters.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Quick Preset Selector for Testing */}
+          <div className="rounded-2xl bg-slate-800/80 border border-teal-500/30 p-4">
+            <p className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-2.5">
+              💡 Quick Patient Presets (Click to Test Different Risk Levels):
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setFullName("Priyam Barua")
+                  setAge(32)
+                  setGender("Male")
+                  setJoint("Right Knee")
+                  setOccupation("Office Executive")
+                  setSymptoms("Occasional mild stiffness after running")
+                }}
+                className="p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-950/20 hover:bg-emerald-900/30 text-emerald-300 font-semibold text-left transition cursor-pointer"
+              >
+                <span className="font-bold">🟢 Mild / Low Risk Profile</span>
+                <p className="text-[10px] text-emerald-400/80 font-normal mt-0.5">Age 32 &bull; Mild stiffness &bull; Male</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFullName("Bimla Karmakar")
+                  setAge(58)
+                  setGender("Female")
+                  setJoint("Right Knee")
+                  setOccupation("Tea Garden Worker")
+                  setSymptoms("Morning stiffness > 30 mins, joint crepitus")
+                }}
+                className="p-2.5 rounded-xl border border-orange-500/40 bg-orange-950/20 hover:bg-orange-900/30 text-orange-300 font-semibold text-left transition cursor-pointer"
+              >
+                <span className="font-bold">🟡 Moderate OA Profile</span>
+                <p className="text-[10px] text-orange-400/80 font-normal mt-0.5">Age 58 &bull; 30m stiffness &bull; Female</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFullName("Chandra Devi Mech")
+                  setAge(71)
+                  setGender("Female")
+                  setJoint("Bilateral Knee")
+                  setOccupation("Elderly Weaver / Homemaker")
+                  setSymptoms("Severe constant pain, unable to climb stairs, bow-leg varus")
+                }}
+                className="p-2.5 rounded-xl border border-rose-500/40 bg-rose-950/20 hover:bg-rose-900/30 text-rose-300 font-semibold text-left transition cursor-pointer"
+              >
+                <span className="font-bold">🔴 High / Advanced OA Profile</span>
+                <p className="text-[10px] text-rose-400/80 font-normal mt-0.5">Age 71 &bull; Severe pain &bull; Varus Deformity</p>
+              </button>
+            </div>
+          </div>
 
           {/* Personal Information */}
           <div className="rounded-2xl bg-slate-800 shadow-xl border border-slate-700 overflow-hidden">
             <div className="border-b border-slate-700 bg-slate-800/50 px-6 py-4 flex items-center gap-3">
               <div className="p-2 bg-slate-900 rounded-lg text-teal-400">
-                <User size={20} />
+                <User size={18} />
               </div>
-              <h3 className="text-lg font-semibold text-slate-100">
-                Personal Information
-              </h3>
+              <h3 className="font-semibold text-slate-100 text-sm">Personal Demographics</h3>
             </div>
 
-            <div className="p-6 grid gap-6 md:grid-cols-2">
-              {/* Name */}
+            <div className="p-6 grid gap-5 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Full Name
-                </label>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Full Name</label>
                 <input
                   type="text"
-                  placeholder="Enter full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
                 />
               </div>
 
-              {/* Age */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Age
-                </label>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Age</label>
                 <input
                   type="number"
-                  placeholder="Enter age"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
                   required
-                  min="0"
-                  max="120"
-                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                  min="18"
+                  max="110"
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
                 />
               </div>
 
-              {/* Gender */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Gender
-                </label>
-                <div className="relative">
-                  <select
-                    required
-                    className="w-full appearance-none rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all cursor-pointer"
-                  >
-                    <option value="" disabled selected hidden>Select gender</option>
-                    <option value="female">Female</option>
-                    <option value="male">Male</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                    <ChevronDown size={16} />
-                  </div>
-                </div>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Gender</label>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+                >
+                  <option value="Female">Female (Higher OA Prevalence Post-Menopause)</option>
+                  <option value="Male">Male</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
-              {/* Phone */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Phone Number
-                </label>
-                <div className="flex">
-                  <div className="flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-slate-700 bg-slate-800 text-slate-400 text-sm">
-                    +91
-                  </div>
-                  <input
-                    type="tel"
-                    placeholder="Enter phone number"
-                    className="w-full flex-1 rounded-r-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Height */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Height (cm)
-                </label>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Phone / ABHA Registered Mobile</label>
                 <input
-                  type="number"
-                  placeholder="e.g. 165"
-                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
                 />
               </div>
 
-              {/* Weight */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Weight (kg)
-                </label>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">NER State</label>
+                <select
+                  value={stateName}
+                  onChange={(e) => setStateName(e.target.value)}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+                >
+                  <option value="Assam">Assam</option>
+                  <option value="Mizoram">Mizoram</option>
+                  <option value="Manipur">Manipur</option>
+                  <option value="Meghalaya">Meghalaya</option>
+                  <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                  <option value="Nagaland">Nagaland</option>
+                  <option value="Tripura">Tripura</option>
+                  <option value="Sikkim">Sikkim</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">District / PHC Block</label>
                 <input
-                  type="number"
-                  placeholder="e.g. 65"
-                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                  type="text"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
                 />
               </div>
             </div>
           </div>
 
-          {/* Medical Information */}
+          {/* Clinical Joint & Occupational Stress */}
           <div className="rounded-2xl bg-slate-800 shadow-xl border border-slate-700 overflow-hidden">
             <div className="border-b border-slate-700 bg-slate-800/50 px-6 py-4 flex items-center gap-3">
-              <div className="p-2 bg-slate-900 rounded-lg text-orange-400">
-                <Stethoscope size={20} />
+              <div className="p-2 bg-slate-900 rounded-lg text-teal-400">
+                <Stethoscope size={18} />
               </div>
-              <h3 className="text-lg font-semibold text-slate-100">
-                Medical Information
-              </h3>
+              <h3 className="font-semibold text-slate-100 text-sm">Target Joint & Biomechanical Exposure</h3>
             </div>
 
-            <div className="p-6 grid gap-6 md:grid-cols-2">
+            <div className="p-6 grid gap-5 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Previous Joint Injury?
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full appearance-none rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all cursor-pointer"
-                  >
-                    <option value="" disabled selected hidden>Select an option</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                    <ChevronDown size={16} />
-                  </div>
-                </div>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Index Joint Examined</label>
+                <select
+                  value={joint}
+                  onChange={(e) => setJoint(e.target.value)}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+                >
+                  <option value="Right Knee">Right Knee</option>
+                  <option value="Left Knee">Left Knee</option>
+                  <option value="Bilateral Knee">Bilateral Knee (Both Joints)</option>
+                </select>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Family History of OA?
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full appearance-none rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all cursor-pointer"
-                  >
-                    <option value="" disabled selected hidden>Select an option</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                    <ChevronDown size={16} />
-                  </div>
-                </div>
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Primary Occupational Loading</label>
+                <input
+                  type="text"
+                  value={occupation}
+                  onChange={(e) => setOccupation(e.target.value)}
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-xs font-semibold text-slate-300">Reported Symptoms</label>
+                <textarea
+                  value={symptoms}
+                  onChange={(e) => setSymptoms(e.target.value)}
+                  rows="2"
+                  className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3.5 py-2 text-sm text-slate-100 outline-none focus:border-teal-500"
+                />
               </div>
             </div>
           </div>
 
           {/* Form Actions */}
-          <div className="mt-10 flex flex-col-reverse sm:flex-row justify-end gap-4 pt-4 border-t border-slate-800">
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
-              className="w-full sm:w-auto rounded-xl border border-slate-700 bg-slate-800 px-6 py-3.5 font-medium text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors cursor-pointer"
+              className="rounded-xl border border-slate-700 bg-slate-800 px-5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700"
             >
               Cancel
             </button>
-
             <button
               type="submit"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-8 py-3.5 font-semibold text-white hover:bg-teal-500 transition-colors shadow-lg shadow-teal-900/20 cursor-pointer"
+              className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg hover:from-teal-700 hover:to-emerald-700 flex items-center gap-2 cursor-pointer"
             >
-              <span>Continue to Assessment</span>
-              <ArrowRight size={18} />
+              <span>Continue to Step 2: WOMAC Questionnaire</span>
+              <ArrowRight size={16} />
             </button>
           </div>
 
         </form>
 
       </main>
+
     </div>
   )
 }
