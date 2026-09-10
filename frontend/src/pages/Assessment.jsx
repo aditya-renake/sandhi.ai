@@ -11,8 +11,25 @@ import {
   Flame, 
   HeartPulse, 
   ClipboardCheck,
-  FileText
+  Check
 } from "lucide-react"
+
+const SCREENING_QUESTIONS = [
+  { id: 1, text: "Do you have pain in your knee, hip, or other joints?" },
+  { id: 2, text: "Does your joint pain get worse when walking, climbing stairs, or doing physical activities?" },
+  { id: 3, text: "Do you experience stiffness in your joints after waking up?" },
+  { id: 4, text: "Does your joint feel stiff after sitting or resting for a long time?" },
+  { id: 5, text: "Do you have difficulty walking or moving because of joint pain?" },
+  { id: 6, text: "Do you hear clicking, grinding, or cracking sounds from your joints when moving?" },
+  { id: 7, text: "Have you noticed swelling around any of your joints?" },
+  { id: 8, text: "Do you feel that your joint movement has become limited?" },
+  { id: 9, text: "Do you experience joint pain repeatedly or frequently?" },
+  { id: 10, text: "Does your joint pain become worse toward the end of the day?" },
+  { id: 11, text: "Have you previously experienced a serious injury to the affected joint?" },
+  { id: 12, text: "Have you ever been diagnosed with arthritis or another joint-related condition?" },
+  { id: 13, text: "Are you overweight or have you been advised by a healthcare professional to lose weight?" },
+  { id: 14, text: "Do you regularly perform activities that put significant stress on your joints?" }
+]
 
 function Assessment() {
   const navigate = useNavigate()
@@ -21,24 +38,23 @@ function Assessment() {
   const [stiffness, setStiffness] = useState("")
   const [mobility, setMobility] = useState("")
   const [activity, setActivity] = useState("")
-  const [medicalHistory, setMedicalHistory] = useState("")
+  const [screeningAnswers, setScreeningAnswers] = useState({})
   const [validationError, setValidationError] = useState("")
+
+  const handleScreeningAnswer = (qId, answer) => {
+    setScreeningAnswers(prev => ({
+      ...prev,
+      [qId]: answer
+    }))
+  }
 
   useEffect(() => {
     try {
       const savedAssessment = localStorage.getItem("oaAssessment")
       if (savedAssessment) {
         const parsed = JSON.parse(savedAssessment)
-        if (parsed.medicalHistory) {
-          setMedicalHistory(parsed.medicalHistory)
-          return
-        }
-      }
-      const savedPatient = localStorage.getItem("sandhi_patient")
-      if (savedPatient) {
-        const parsed = JSON.parse(savedPatient)
-        if (parsed.symptoms) {
-          setMedicalHistory(parsed.symptoms)
+        if (parsed.screeningAnswers) {
+          setScreeningAnswers(parsed.screeningAnswers)
         }
       }
     } catch (e) {
@@ -78,7 +94,7 @@ function Assessment() {
       stiffness,
       mobility,
       activity,
-      medicalHistory: medicalHistory.trim(),
+      screeningAnswers,
       womacScore,
       painCategory: getPainCategory(pain)?.label || "Mild Pain"
     }
@@ -387,36 +403,77 @@ function Assessment() {
             </div>
           </section>
 
-          {/* 5. PATIENT MEDICAL HISTORY */}
+          {/* 5. PATIENT OA SCREENING QUESTIONS */}
           <section className="rounded-2xl bg-slate-800 border border-slate-700 shadow-xl overflow-hidden">
-            <div className="border-b border-slate-700/80 bg-slate-800/50 px-6 py-4 flex items-center gap-3">
-              <div className="p-2 bg-slate-900 rounded-lg text-teal-400">
-                <FileText size={20} />
+            <div className="border-b border-slate-700/80 bg-slate-800/50 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-900 rounded-lg text-teal-400">
+                  <ClipboardCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-semibold text-slate-100">
+                    Patient OA Screening Questions
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Basic clinical questions to screen for osteoarthritis symptoms and joint health.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base md:text-lg font-semibold text-slate-100">
-                  Patient Medical History
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Document any previous joint injuries, surgeries, chronic illnesses, or clinical background.
-                </p>
-              </div>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-teal-400 font-medium self-start sm:self-center">
+                {Object.keys(screeningAnswers).length} of {SCREENING_QUESTIONS.length} Answered
+              </span>
             </div>
 
-            <div className="p-6">
-              <label className="mb-2 block text-xs font-semibold text-slate-300">
-                Clinical History &amp; Previous Injuries / Conditions
-              </label>
-              <textarea
-                value={medicalHistory}
-                onChange={(e) => setMedicalHistory(e.target.value)}
-                placeholder="Enter patient's medical history (e.g., prior joint trauma, knee surgeries, cartilage tear, comorbidities, daily medications, or family history of OA)..."
-                rows={4}
-                className="w-full rounded-xl bg-slate-900/60 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all resize-y"
-              />
-              <p className="mt-2 text-[11px] text-slate-500">
-                Patient-reported history is factored into comprehensive risk assessment and clinical care navigation.
-              </p>
+            <div className="p-6 space-y-3">
+              {SCREENING_QUESTIONS.map((q) => {
+                const answer = screeningAnswers[q.id]
+                return (
+                  <div
+                    key={q.id}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all ${
+                      answer
+                        ? "bg-slate-900/80 border-slate-700"
+                        : "bg-slate-900/40 border-slate-800/80 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-md bg-slate-800 text-teal-400 text-xs font-bold shrink-0 mt-0.5">
+                        {q.id}
+                      </span>
+                      <p className="text-sm font-medium text-slate-200 leading-snug">
+                        {q.text}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-9 sm:pl-0">
+                      <button
+                        type="button"
+                        onClick={() => handleScreeningAnswer(q.id, "Yes")}
+                        className={`min-w-[70px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          answer === "Yes"
+                            ? "bg-teal-600 text-white shadow-md shadow-teal-900/40 ring-1 ring-teal-400"
+                            : "bg-slate-800/90 text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 border border-slate-700"
+                        }`}
+                      >
+                        {answer === "Yes" && <Check size={13} />}
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleScreeningAnswer(q.id, "No")}
+                        className={`min-w-[70px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          answer === "No"
+                            ? "bg-slate-700 text-white shadow-md ring-1 ring-slate-500"
+                            : "bg-slate-800/90 text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 border border-slate-700"
+                        }`}
+                      >
+                        {answer === "No" && <Check size={13} />}
+                        No
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </section>
 
