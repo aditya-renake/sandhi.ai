@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { addScreening } from "../utils/screeningsStore"
 import { useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 
@@ -41,6 +42,54 @@ export default function Results() {
   const burstCount = vag.burstCount ?? (compositeScore >= 65 ? 7 : compositeScore >= 35 ? 4 : 1)
   const peakFrequency = vag.peakFrequency ?? (compositeScore >= 65 ? 245 : compositeScore >= 35 ? 142 : 85)
 
+  const hasSyncedRef = useRef(false)
+  const [synced, setSynced] = useState(false)
+
+  useEffect(() => {
+    if (hasSyncedRef.current) return
+    hasSyncedRef.current = true
+
+    const newRecord = {
+      id: "SCR-" + Math.floor(100000 + Math.random() * 900000),
+      timestamp: new Date().toISOString(),
+      patient: {
+        name: patient.name || "Unknown Patient",
+        age: Number(patient.age) || 55,
+        gender: patient.gender || "Female",
+        phone: patient.phone || "+91 98640 12000",
+        state: patient.state || "Assam",
+        district: patient.district || "Kamrup Metropolitan",
+        joint: patient.joint || "Right Knee",
+        occupation: patient.occupation || "Agricultural Worker",
+        abhaId: patient.abhaId || "14-" + Math.floor(1000 + Math.random() * 9000) + "-2026-4821"
+      },
+      scores: {
+        compositeScore,
+        riskCategory,
+        klProxy,
+        womacScore,
+        sitToStandReps: reps,
+        rom,
+        flexionAngle: movement.flexionAngle || (180 - rom),
+        extensionAngle: movement.extensionAngle || 160,
+        alignmentRatio,
+        varusValgus,
+        burstCount,
+        peakFrequency
+      },
+      clinicalAction: riskCategory === "HIGH" 
+        ? "GMCH Guwahati Tertiary Orthopedic Referral"
+        : riskCategory === "MODERATE"
+        ? "PHC Physiotherapy & Quadriceps Strengthening"
+        : "Preventive Joint Health & Lifestyle Counseling",
+      status: "New (Auto-Synced)",
+      notes: "Auto-synced from citizen screening. Chair Stand: " + reps + " reps, Knee ROM: " + rom + " deg. Acoustic bursts: " + burstCount + "."
+    }
+
+    addScreening(newRecord)
+    setSynced(true)
+  }, [compositeScore, riskCategory, klProxy, womacScore, reps, rom, alignmentRatio, varusValgus, burstCount, peakFrequency, patient])
+
   const [downloading, setDownloading] = useState(false)
 
   const handleDownloadPDF = () => {
@@ -68,6 +117,31 @@ export default function Results() {
           <p className="mt-1 text-sm text-slate-500">
             Patient-specific diagnostic synthesis generated for MDoNER PS 26004
           </p>
+        </div>
+
+        {/* Real-Time Telemetry Synchronization Notice */}
+        <div className="mb-6 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-emerald-200">
+          <div className="flex items-center gap-3">
+            <span className="flex h-3 w-3 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                <span>⚡ Automatically Synchronized with Doctor & Admin Hub</span>
+                <span className="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-full border border-emerald-700 text-emerald-300 font-mono">LIVE SYNC</span>
+              </p>
+              <p className="text-[11px] text-emerald-300 mt-0.5">
+                Screening biomarkers for <b>{patient.name}</b> (ABHA: {patient.abhaId || "14-xxxx"}) are now immediately viewable in the clinical command dashboard.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate("/")}
+            className="shrink-0 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md cursor-pointer flex items-center gap-1"
+          >
+            <span>Inspect in Admin Hub →</span>
+          </button>
         </div>
 
         {/* Patient Bar */}
@@ -318,7 +392,7 @@ export default function Results() {
             onClick={() => navigate("/dashboard")}
             className="rounded-xl border border-slate-300 px-6 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
           >
-            ← Back to Dashboard
+            ← Home Portal
           </button>
 
           <div className="flex gap-2">

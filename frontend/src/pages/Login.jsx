@@ -1,411 +1,452 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Phone, User, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react"
+import { 
+  Phone, 
+  User, 
+  Lock, 
+  ArrowRight, 
+  ShieldCheck, 
+  Eye, 
+  EyeOff, 
+  Building2, 
+  Mail, 
+  ArrowLeft,
+  CheckCircle2,
+  Stethoscope
+} from "lucide-react"
 
 function Login() {
   const navigate = useNavigate()
-  const [isLogin, setIsLogin] = useState(false)
-  const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-  const [password, setPassword] = useState("")
+  const [activeTab, setActiveTab] = useState("signin") // "signin" | "signup"
+  
+  // Sign In State
+  const [username, setUsername] = useState("invictus")
+  const [password, setPassword] = useState("invictus@11")
   const [showPassword, setShowPassword] = useState(false)
+  
+  // Sign Up State
+  const [fullName, setFullName] = useState("")
+  const [signupEmail, setSignupEmail] = useState("")
+  const [signupPhone, setSignupPhone] = useState("")
+  const [signupPassword, setSignupPassword] = useState("")
+  const [showSignupPassword, setShowSignupPassword] = useState(false)
+  const [role, setRole] = useState("Medical Officer / Doctor")
+  const [state, setState] = useState("Assam")
+  const [healthCenter, setHealthCenter] = useState("GMCH Guwahati")
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [successMsg, setSuccessMsg] = useState("")
 
-  const handleSubmit = async (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
-    if (isLogin) {
-      // Existing User Login flow
-      try {
-        const response = await fetch("/api/v1/auth/login-json", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim(), password })
-        })
+    try {
+      // 1. Attempt backend API authentication if available
+      const response = await fetch("/api/v1/auth/login-json", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          localStorage.setItem("sandhi_token", data.access_token)
-          localStorage.setItem(
-            "sandhi_user",
-            JSON.stringify({
-              username: data.username,
-              full_name: data.full_name || data.username,
-              role: data.role || "asha_worker",
-              state: data.state || "Assam",
-              phone: phone || ""
-            })
-          )
-          navigate("/dashboard")
-          return
-        }
-
-        // Demo / offline fallback for invictus
-        if (username.trim() === "invictus" && password === "invictus@11") {
-          localStorage.setItem(
-            "sandhi_user",
-            JSON.stringify({
-              username: "invictus",
-              full_name: "Admin Invictus",
-              role: "admin",
-              state: "Assam",
-              phone: phone || ""
-            })
-          )
-          navigate("/dashboard")
-          return
-        }
-
-        const errData = await response.json().catch(() => ({}))
-        setError(errData.detail || "Invalid username or password")
-      } catch {
-        // Offline / network fallback
-        if (username.trim() === "invictus" && password === "invictus@11") {
-          localStorage.setItem(
-            "sandhi_user",
-            JSON.stringify({
-              username: "invictus",
-              full_name: "Admin Invictus",
-              role: "admin",
-              state: "Assam",
-              phone: phone || ""
-            })
-          )
-          navigate("/dashboard")
-        } else if (username.trim() && password) {
-          // Allow offline session for demonstration
-          localStorage.setItem(
-            "sandhi_user",
-            JSON.stringify({
-              username: username.trim(),
-              full_name: username.trim(),
-              role: "asha_worker",
-              state: "Assam",
-              phone: phone || ""
-            })
-          )
-          navigate("/dashboard")
-        } else {
-          setError("Network error. Please check your connection or credentials.")
-        }
-      } finally {
-        setLoading(false)
-      }
-    } else {
-      // New User Registration flow (Username, Email, Phone, Password)
-      try {
-        const regResponse = await fetch("/api/v1/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: username.trim(),
-            email: email.trim() || undefined,
-            password: password,
-            full_name: username.trim(),
-            role: "asha_worker",
-            state: "Assam",
-            district: "Kamrup Metropolitan",
-            phc_name: "Dispur PHC"
-          })
-        })
-
-        if (regResponse.ok) {
-          // Optional automatic token login
-          try {
-            const loginResponse = await fetch("/api/v1/auth/login-json", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ username: username.trim(), password })
-            })
-            if (loginResponse.ok) {
-              const data = await loginResponse.json()
-              localStorage.setItem("sandhi_token", data.access_token)
-            }
-          } catch {
-            // non-blocking
-          }
-
-          localStorage.setItem(
-            "sandhi_user",
-            JSON.stringify({
-              username: username.trim(),
-              full_name: username.trim(),
-              email: email.trim(),
-              phone: phone.trim(),
-              role: "asha_worker",
-              state: "Assam"
-            })
-          )
-          navigate("/dashboard")
-          return
-        }
-
-        const errData = await regResponse.json().catch(() => ({}))
-        if (errData.detail) {
-          setError(errData.detail)
-          return
-        }
-
-        // Fallback save and continue
-        localStorage.setItem(
-          "sandhi_user",
-          JSON.stringify({
-            username: username.trim(),
-            full_name: username.trim(),
-            email: email.trim(),
-            phone: phone.trim(),
-            role: "asha_worker",
-            state: "Assam"
-          })
-        )
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem("sandhi_token", data.access_token)
+        localStorage.setItem("sandhi_user", JSON.stringify({
+          username: data.username,
+          full_name: data.full_name || "Dr. " + data.username,
+          role: data.role || "Doctor",
+          state: data.state || "Assam",
+          phone: ""
+        }))
         navigate("/dashboard")
-      } catch {
-        // Backend offline fallback - establish local session for demo
-        localStorage.setItem(
-          "sandhi_user",
-          JSON.stringify({
-            username: username.trim(),
-            full_name: username.trim(),
-            email: email.trim(),
-            phone: phone.trim(),
-            role: "asha_worker",
-            state: "Assam"
-          })
-        )
-        navigate("/dashboard")
-      } finally {
-        setLoading(false)
+        return
       }
+
+      // 2. Demo / Default Admin Credentials (invictus / invictus@11)
+      if (username === "invictus" && password === "invictus@11") {
+        localStorage.setItem("sandhi_user", JSON.stringify({
+          username: "invictus",
+          full_name: "Dr. Invictus Barman",
+          role: "Nodal Orthopedic Officer",
+          state: "Assam",
+          phone: "+91 98640 11000",
+          center: "GMCH Guwahati"
+        }))
+        navigate("/dashboard")
+        return
+      }
+
+      // Check locally registered users
+      const storedUsers = JSON.parse(localStorage.getItem("sandhi_registered_users") || "[]")
+      const matched = storedUsers.find(u => (u.username === username || u.email === username) && u.password === password)
+      if (matched) {
+        localStorage.setItem("sandhi_user", JSON.stringify(matched))
+        navigate("/dashboard")
+        return
+      }
+
+      const errData = await response.json().catch(() => ({}))
+      setError(errData.detail || "Invalid username or password")
+    } catch {
+      // Network fallback
+      if (username === "invictus" && password === "invictus@11") {
+        localStorage.setItem("sandhi_user", JSON.stringify({
+          username: "invictus",
+          full_name: "Dr. Invictus Barman",
+          role: "Nodal Orthopedic Officer",
+          state: "Assam",
+          phone: "+91 98640 11000",
+          center: "GMCH Guwahati"
+        }))
+        navigate("/dashboard")
+      } else {
+        setError("Invalid credentials. Use demo admin or create an account.")
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignUp = (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    if (!fullName || !signupEmail || !signupPassword) {
+      setError("Please fill in all required fields.")
+      setLoading(false)
+      return
+    }
+
+    const newUser = {
+      username: signupEmail.split("@")[0],
+      email: signupEmail,
+      full_name: fullName,
+      role: role,
+      state: state,
+      center: healthCenter,
+      phone: signupPhone ? `+91 ${signupPhone}` : "+91 98000 00000",
+      password: signupPassword
+    }
+
+    try {
+      const storedUsers = JSON.parse(localStorage.getItem("sandhi_registered_users") || "[]")
+      storedUsers.push(newUser)
+      localStorage.setItem("sandhi_registered_users", JSON.stringify(storedUsers))
+      localStorage.setItem("sandhi_user", JSON.stringify(newUser))
+
+      setSuccessMsg("Account registered successfully! Redirecting to command hub...")
+      setTimeout(() => {
+        navigate("/dashboard")
+      }, 800)
+    } catch {
+      localStorage.setItem("sandhi_user", JSON.stringify(newUser))
+      navigate("/dashboard")
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-8 font-sans">
-      <div className="w-full max-w-md rounded-2xl bg-slate-800 p-8 shadow-2xl border border-slate-700">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-slate-950 px-4 py-8 font-sans selection:bg-teal-500 selection:text-white">
+      
+      {/* Return to Portal Button */}
+      <div className="w-full max-w-md mb-4 flex justify-between items-center">
+        <button
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-teal-400 transition cursor-pointer"
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Portal Selection</span>
+        </button>
+        <span className="text-[11px] text-teal-500 font-mono bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60">
+          Admin Gateway
+        </span>
+      </div>
+
+      <div className="w-full max-w-md rounded-3xl bg-slate-900 p-7 sm:p-8 shadow-2xl border border-slate-800 relative overflow-hidden">
         
-        {/* Brand Header */}
+        {/* Glow Accent */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-teal-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        {/* Branding Header */}
         <div className="mb-6 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-900/40 text-teal-400 font-bold text-3xl mb-4 shadow-inner ring-1 ring-teal-500/20">
-            <ShieldCheck size={32} />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-900/40 text-teal-400 font-bold text-2xl mb-3 shadow-inner ring-1 ring-teal-500/20">
+            <ShieldCheck size={28} />
           </div>
-          <h1 className="text-3xl font-bold text-slate-100 tracking-tight">
-            OA Care
+          <h1 className="text-2xl font-black text-slate-100 tracking-tight">
+            Sandhi-AI Command Hub
           </h1>
-          <p className="mt-2 text-sm text-teal-400 font-medium">
-            AI-Assisted Osteoarthritis Risk Screening
-          </p>
-          <p className="mt-2 text-sm text-slate-400">
-            Early risk screening and care navigation for osteoarthritis.
+          <p className="mt-1 text-xs text-teal-400 font-medium">
+            Doctor, Specialist & MDoNER Admin Access
           </p>
         </div>
 
+        {/* Dual Tab Switcher */}
+        <div className="flex rounded-xl bg-slate-950 p-1 mb-6 border border-slate-800">
+          <button
+            type="button"
+            onClick={() => { setActiveTab("signin"); setError(""); }}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === "signin"
+                ? "bg-teal-600 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab("signup"); setError(""); }}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === "signup"
+                ? "bg-teal-600 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {/* Demo Credentials Fast-Fill */}
+        {activeTab === "signin" && (
+          <div className="mb-5 rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-xs text-slate-300 flex items-center justify-between">
+            <div>
+              <span className="font-semibold text-slate-200">Demo Admin:</span>
+              <span className="ml-1 font-mono text-teal-400">invictus</span> / <span className="font-mono text-teal-400">invictus@11</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername("invictus")
+                setPassword("invictus@11")
+              }}
+              className="text-[11px] font-bold text-teal-400 hover:text-teal-300 underline ml-2 transition-colors cursor-pointer"
+            >
+              Auto-fill
+            </button>
+          </div>
+        )}
+
         {error && (
-          <div className="mb-5 rounded-lg bg-red-900/20 border border-red-500/30 p-3 text-sm text-red-400">
+          <div className="mb-4 rounded-xl bg-red-950/40 border border-red-500/40 p-3 text-xs text-red-400">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin ? (
-            /* Registration Mode: 1. Username, 2. Email, 3. Phone, 4. Password */
-            <>
-              {/* 1. Username */}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                  Username
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <User size={18} />
-                  </div>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Choose a username"
-                    required
-                    className="w-full rounded-lg bg-slate-900/50 border border-slate-700 pl-10 pr-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                  />
+        {successMsg && (
+          <div className="mb-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 p-3 text-xs text-emerald-400 flex items-center gap-2">
+            <CheckCircle2 size={16} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* SIGN IN FORM */}
+        {activeTab === "signin" ? (
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                Username or Official Email
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <User size={16} />
                 </div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. invictus or doctor@gmch.gov.in"
+                  required
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-300">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <Lock size={16} />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 pl-9 pr-10 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-500 py-3 font-bold text-sm text-white disabled:opacity-50 transition-colors cursor-pointer shadow-lg shadow-teal-900/30"
+            >
+              {loading ? "Verifying..." : "Access Admin Command Hub"}
+              {!loading && <ArrowRight size={16} />}
+            </button>
+          </form>
+        ) : (
+          /* SIGN UP FORM */
+          <form onSubmit={handleSignUp} className="space-y-3.5">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">
+                Full Name & Title
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <Stethoscope size={16} />
+                </div>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="e.g. Dr. P. K. Hazarika"
+                  required
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 pl-9 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">
+                Official Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <Mail size={16} />
+                </div>
+                <input
+                  type="email"
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                  placeholder="doctor@hospital.gov.in"
+                  required
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 pl-9 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-300">
+                  NER State
+                </label>
+                <select
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100 outline-none focus:border-teal-500 cursor-pointer"
+                >
+                  <option value="Assam">Assam</option>
+                  <option value="Manipur">Manipur</option>
+                  <option value="Meghalaya">Meghalaya</option>
+                  <option value="Mizoram">Mizoram</option>
+                  <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                  <option value="Nagaland">Nagaland</option>
+                  <option value="Tripura">Tripura</option>
+                  <option value="Sikkim">Sikkim</option>
+                </select>
               </div>
 
-              {/* 2. Email */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                  Email
+                <label className="mb-1 block text-xs font-semibold text-slate-300">
+                  Hospital / Center
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <Mail size={18} />
-                  </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
-                    className="w-full rounded-lg bg-slate-900/50 border border-slate-700 pl-10 pr-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={healthCenter}
+                  onChange={(e) => setHealthCenter(e.target.value)}
+                  placeholder="e.g. GMCH Guwahati"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500"
+                />
               </div>
+            </div>
 
-              {/* 3. Phone */}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                  Phone
-                </label>
-                <div className="flex">
-                  <div className="flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-slate-700 bg-slate-800 text-slate-400 text-sm font-medium">
-                    +91
-                  </div>
-                  <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                      <Phone size={18} />
-                    </div>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Enter phone number"
-                      required
-                      className="w-full rounded-r-lg bg-slate-900/50 border border-slate-700 pl-10 pr-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                    />
-                  </div>
-                </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">
+                Contact Phone
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-700 bg-slate-950 text-slate-400 text-xs">
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  value={signupPhone}
+                  onChange={(e) => setSignupPhone(e.target.value)}
+                  placeholder="98765 43210"
+                  className="w-full rounded-r-xl bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500"
+                />
               </div>
+            </div>
 
-              {/* 4. Password with Eye toggle */}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <Lock size={18} />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Create a password"
-                    required
-                    className="w-full rounded-lg bg-slate-900/50 border border-slate-700 pl-10 pr-10 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-teal-400 transition-colors cursor-pointer"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">
+                Create Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <Lock size={16} />
                 </div>
+                <input
+                  type={showSignupPassword ? "text" : "password"}
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  required
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 pl-9 pr-10 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSignupPassword(!showSignupPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 cursor-pointer"
+                >
+                  {showSignupPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-            </>
-          ) : (
-            /* Login Mode: Username and Password */
-            <>
-              {/* Username */}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                  Username
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <User size={18} />
-                  </div>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
-                    required
-                    className="w-full rounded-lg bg-slate-900/50 border border-slate-700 pl-10 pr-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                  />
-                </div>
-              </div>
+            </div>
 
-              {/* Password with Eye toggle */}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <Lock size={18} />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    className="w-full rounded-lg bg-slate-900/50 border border-slate-700 pl-10 pr-10 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-teal-400 transition-colors cursor-pointer"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-500 py-3 font-bold text-sm text-white disabled:opacity-50 transition-colors cursor-pointer shadow-lg shadow-teal-900/30"
+            >
+              {loading ? "Registering..." : "Register Clinical Officer"}
+              {!loading && <ArrowRight size={16} />}
+            </button>
+          </form>
+        )}
 
-          {/* Continue to Dashboard Button */}
+        {/* Quick link to Patient Portal */}
+        <div className="mt-6 pt-4 border-t border-slate-800 text-center">
+          <p className="text-xs text-slate-400">
+            Looking to take the knee health screening test?
+          </p>
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-teal-600 py-3 font-semibold text-white hover:bg-teal-500 disabled:opacity-50 transition-colors cursor-pointer shadow-lg shadow-teal-900/20"
+            type="button"
+            onClick={() => navigate("/registration")}
+            className="mt-1 text-xs font-bold text-teal-400 hover:text-teal-300 transition cursor-pointer"
           >
-            {loading ? "Processing..." : "Continue to Dashboard"}
-            {!loading && <ArrowRight size={18} />}
+            Go to Patient Screening Portal →
           </button>
-        </form>
-
-        {/* Already have account / Don't have account toggle at the bottom of Continue to Dashboard */}
-        <div className="mt-6 text-center text-sm text-slate-400">
-          {!isLogin ? (
-            <p>
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(true)
-                  setError("")
-                }}
-                className="font-semibold text-teal-400 hover:text-teal-300 underline cursor-pointer transition-colors"
-              >
-                Log in
-              </button>
-            </p>
-          ) : (
-            <p>
-              Don't have an account?{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(false)
-                  setError("")
-                }}
-                className="font-semibold text-teal-400 hover:text-teal-300 underline cursor-pointer transition-colors"
-              >
-                Register
-              </button>
-            </p>
-          )}
         </div>
 
-        <p className="mt-8 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-[10px] text-slate-500">
           MDoNER Healthcare Screening Platform &bull; Problem Statement 26004
         </p>
 
