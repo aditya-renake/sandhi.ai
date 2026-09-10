@@ -69,8 +69,8 @@ export default function Navbar({ onPortalChange }) {
           onClick={() => navigate("/dashboard")}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white font-black text-lg shadow-sm group-hover:scale-105 transition">
-            SA
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-sm overflow-hidden group-hover:scale-105 transition">
+            <img src="/logo.png" alt="SANDHI-AI Logo" className="h-full w-full object-contain p-1" />
           </div>
           <div>
             <div className="flex items-center gap-2">
