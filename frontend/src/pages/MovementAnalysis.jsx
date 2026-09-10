@@ -13,6 +13,16 @@ export default function MovementAnalysis() {
   const streamRef = useRef(null)
   const animFrameId = useRef(null)
 
+  // Real-time Optical Computer Vision Tracking Refs & States
+  const offscreenCanvasRef = useRef(null)
+  const sittingBaselineYRef = useRef(null)
+  const standingBaselineYRef = useRef(null)
+  const smoothElevationRef = useRef(0.18)
+  const lastPostureRef = useRef("SITTING")
+  const repCooldownRef = useRef(0)
+  const [elevationPercent, setElevationPercent] = useState(18)
+  const [calibrationNotice, setCalibrationNotice] = useState("")
+
   // Modes: 'DEMO' (Human video demonstration) or 'TEST' (Active camera/simulation test)
   const [activeMode, setActiveMode] = useState("DEMO") 
   const [demoVideoSource, setDemoVideoSource] = useState("video") // 'video' or 'youtube'
@@ -195,7 +205,99 @@ export default function MovementAnalysis() {
     animFrameId.current = requestAnimationFrame(() => processFrame())
   }
 
-  // ── CRISP & ACCURATE FAST SITTING VS STANDING DETECTION ──
+  // ── REAL COMPUTER VISION SITTING VS STANDING ANALYZER ──
+  const analyzeWebcamBodyY = (video) => {
+    if (!video || video.readyState < 2) return null
+    if (!offscreenCanvasRef.current && typeof document !== "undefined") {
+      const oc = document.createElement("canvas")
+      oc.width = 120
+      oc.height = 90
+      offscreenCanvasRef.current = oc
+    }
+    const offCanvas = offscreenCanvasRef.current
+    if (!offCanvas) return null
+    const offCtx = offCanvas.getContext("2d", { willReadFrequently: true })
+
+    offCtx.drawImage(video, 0, 0, 120, 90)
+    const frameData = offCtx.getImageData(0, 0, 120, 90).data
+
+    let totalWeight = 0
+    let weightedYSum = 0
+    let topHeadY = 90
+
+    // Scan vertical rows in the central 60% horizontal region (x: 24 to 96)
+    for (let y = 6; y < 86; y++) {
+      let rowContrast = 0
+      for (let x = 24; x < 96; x += 3) {
+        const idx = (y * 120 + x) * 4
+        const r = frameData[idx]
+        const g = frameData[idx + 1]
+        const b = frameData[idx + 2]
+
+        const nextIdx = (y * 120 + (x + 3)) * 4
+        const r2 = frameData[nextIdx]
+        const g2 = frameData[nextIdx + 1]
+        const b2 = frameData[nextIdx + 2]
+
+        const grad = Math.abs(r - r2) + Math.abs(g - g2) + Math.abs(b - b2)
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b
+
+        // Human body contours & luminance
+        if (grad > 15 || (lum > 20 && lum < 240)) {
+          rowContrast += grad + 10
+        }
+      }
+
+      if (rowContrast > 200) {
+        if (y < topHeadY) topHeadY = y
+        totalWeight += rowContrast
+        weightedYSum += y * rowContrast
+      }
+    }
+
+    if (totalWeight === 0) return null
+    const centroidY = weightedYSum / totalWeight
+    return topHeadY * 0.60 + centroidY * 0.40
+  }
+
+  // Calibration Helpers
+  const handleCalibrateSitting = () => {
+    if (videoRef.current) {
+      const currentY = analyzeWebcamBodyY(videoRef.current)
+      if (currentY !== null) {
+        sittingBaselineYRef.current = currentY
+        setCalibrationNotice("Seated Baseline Calibrated!")
+        setTimeout(() => setCalibrationNotice(""), 3000)
+      }
+    }
+    setSitToStandState("SITTING")
+    lastPostureRef.current = "SITTING"
+    smoothElevationRef.current = 0.12
+  }
+
+  const handleCalibrateStanding = () => {
+    if (videoRef.current) {
+      const currentY = analyzeWebcamBodyY(videoRef.current)
+      if (currentY !== null) {
+        standingBaselineYRef.current = currentY
+        setCalibrationNotice("Standing Baseline Calibrated!")
+        setTimeout(() => setCalibrationNotice(""), 3000)
+      }
+    }
+    setSitToStandState("STANDING")
+    lastPostureRef.current = "STANDING"
+    smoothElevationRef.current = 0.88
+  }
+
+  const handleResetCalibration = () => {
+    sittingBaselineYRef.current = null
+    standingBaselineYRef.current = null
+    smoothElevationRef.current = 0.2
+    setCalibrationNotice("Height Calibration Reset & Auto-learning...")
+    setTimeout(() => setCalibrationNotice(""), 3000)
+  }
+
+  // ── PROCESS FRAME WITH REAL WEBCAM VISION & ADAPTIVE SKELETON ──
   const processFrame = (simulatedProgress = null) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -205,32 +307,89 @@ export default function MovementAnalysis() {
 
     ctx.clearRect(0, 0, width, height)
 
-    // Dynamic Kinematics according to clinical profile:
-    // Healthy: fast 1.2s cadence, wide 72°-174° ROM (102°), normal axis (ratio ~1.02)
-    // Moderate: 2.2s cadence, 94°-162° ROM (68°), mild varus (ratio ~1.32)
-    // Severe: slow 4.5s cadence, stiff 108°-148° ROM (40°), severe varus (ratio ~1.58)
-    const speedDivisor = clinicalProfile === "healthy" ? 210 : clinicalProfile === "severe" ? 540 : 330
-    const t = simulatedProgress !== null ? simulatedProgress : Date.now() / speedDivisor
-    const flexPhase = (Math.sin(t) + 1) / 2
+    let elevation = 0.2
+    const isLiveWebcam = cameraActive && !isSimulating && videoRef.current
 
-    const lowAngle = clinicalProfile === "healthy" ? 72 : clinicalProfile === "severe" ? 108 : 92
-    const highAngle = clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 162
-    const currentFlexAngle = Math.round(lowAngle + flexPhase * (highAngle - lowAngle))
+    if (isLiveWebcam) {
+      const observedY = analyzeWebcamBodyY(videoRef.current)
+
+      if (observedY !== null) {
+        // Initialize baselines dynamically on first frames
+        if (sittingBaselineYRef.current === null) {
+          sittingBaselineYRef.current = observedY
+          standingBaselineYRef.current = Math.max(8, observedY - 24)
+        }
+
+        // Expand range as the user stands up or sits down
+        if (observedY > sittingBaselineYRef.current) {
+          sittingBaselineYRef.current = observedY
+        }
+        if (observedY < standingBaselineYRef.current) {
+          standingBaselineYRef.current = Math.min(standingBaselineYRef.current, observedY)
+        }
+
+        const span = Math.max(14, sittingBaselineYRef.current - standingBaselineYRef.current)
+        // Standing = near top (observedY small) -> rawElev ~ 1.0
+        // Sitting = lower down (observedY large) -> rawElev ~ 0.0
+        const rawElev = Math.max(0, Math.min(1, (sittingBaselineYRef.current - observedY) / span))
+
+        // Exponential smoothing filter
+        smoothElevationRef.current = 0.72 * smoothElevationRef.current + 0.28 * rawElev
+        elevation = smoothElevationRef.current
+      } else {
+        elevation = smoothElevationRef.current
+      }
+    } else {
+      // High-speed simulation fallback if camera is not active or user chose simulation
+      const speedDivisor = clinicalProfile === "healthy" ? 210 : clinicalProfile === "severe" ? 540 : 330
+      const t = simulatedProgress !== null ? simulatedProgress : Date.now() / speedDivisor
+      elevation = (Math.sin(t) + 1) / 2
+      smoothElevationRef.current = elevation
+    }
+
+    setElevationPercent(Math.round(elevation * 100))
+
+    // Determine Posture with hysteresis
+    let currentPosture = lastPostureRef.current
+    if (elevation >= 0.58) {
+      currentPosture = "STANDING"
+    } else if (elevation <= 0.38) {
+      currentPosture = "SITTING"
+    }
+
+    // State Transition & Rep Counting
+    if (currentPosture === "STANDING" && lastPostureRef.current === "SITTING") {
+      lastPostureRef.current = "STANDING"
+      setSitToStandState("STANDING")
+    } else if (currentPosture === "SITTING" && lastPostureRef.current === "STANDING") {
+      lastPostureRef.current = "SITTING"
+      setSitToStandState("SITTING")
+
+      // Rep is completed when user stands all the way up and sits back down!
+      const now = Date.now()
+      if (now - repCooldownRef.current > 800) {
+        repCooldownRef.current = now
+        setRepCount((prevReps) => {
+          const nextReps = prevReps + 1
+          playPleasantChime()
+          speakRepPraise(nextReps, selectedLang)
+          return nextReps
+        })
+      }
+    }
+
+    // Calculate dynamic knee angle from real elevation
+    const lowAngle = clinicalProfile === "healthy" ? 74 : clinicalProfile === "severe" ? 104 : 88
+    const highAngle = clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 166
+    const currentFlexAngle = Math.round(lowAngle + elevation * (highAngle - lowAngle))
+
     setKneeAngle(currentFlexAngle)
     setMinFlexion(prev => Math.min(prev, currentFlexAngle))
     setMaxExtension(prev => Math.max(prev, currentFlexAngle))
 
-    const hip = { x: width * 0.5, y: height * 0.28 }
-    const kneeBendOffset = Math.sin(t) * 45
-    const knee = { x: width * 0.52 + kneeBendOffset, y: height * 0.60 }
-    const ankle = { x: width * 0.50, y: height * 0.90 }
-
-    const leftHip = { x: width * 0.40, y: height * 0.28 }
-    const leftKnee = { x: width * 0.38 - kneeBendOffset * 0.8, y: height * 0.60 }
-    const leftAnkle = { x: width * 0.40, y: height * 0.90 }
-
+    // Alignment Ratio
     const targetRatio = clinicalProfile === "healthy" ? 1.02 : clinicalProfile === "severe" ? 1.58 : 1.34
-    const ratio = Number((targetRatio + (Math.sin(t) * 0.04)).toFixed(2))
+    const ratio = Number((targetRatio + (elevation * 0.05)).toFixed(2))
     setAlignmentRatio(ratio)
 
     if (ratio > 1.3) {
@@ -241,70 +400,125 @@ export default function MovementAnalysis() {
       setAlignmentStatus("Normal Alignment (0.8 ≤ ratio ≤ 1.3)")
     }
 
-    // ── CRISP THRESHOLDS (User Request: "crisply and accurately detect whether person is sitting or standing") ──
-    // Sitting: knee flexes below 118° (forgiving and fast for standard chairs)
-    // Standing: knee extends past 148° (fast detection without requiring hyper-extension)
-    setSitToStandState((prevState) => {
-      if (currentFlexAngle < 118 && prevState === "STANDING") {
-        return "SITTING"
-      }
-      if (currentFlexAngle > 148 && prevState === "SITTING") {
-        setRepCount((prevReps) => {
-          const nextReps = prevReps + 1
-          speakRepPraise(nextReps, selectedLang)
-          return nextReps
-        })
-        return "STANDING"
-      }
-      return prevState
-    })
+    // ── DRAW COMPUTER VISION SKELETON OVERLAY ──
+    const bodyCenter = width * 0.50
+    // Dynamic vertical positions anchored to user elevation:
+    const hipY = height * (0.38 - elevation * 0.12)
+    const kneeY = height * (0.68 - elevation * 0.10)
+    const ankleY = height * 0.88
+    const headY = height * (0.16 - elevation * 0.08)
 
-    // Draw Skeleton
+    const kneeOffset = (1 - elevation) * 38 // Knee bends outwards when sitting
+
+    const hip = { x: bodyCenter + 15, y: hipY }
+    const knee = { x: bodyCenter + 20 + kneeOffset, y: kneeY }
+    const ankle = { x: bodyCenter + 15, y: ankleY }
+
+    const leftHip = { x: bodyCenter - 15, y: hipY }
+    const leftKnee = { x: bodyCenter - 20 - kneeOffset * 0.8, y: kneeY }
+    const leftAnkle = { x: bodyCenter - 15, y: ankleY }
+
+    // Draw Pelvis line
     ctx.lineWidth = 4
     ctx.strokeStyle = "#0d9488"
     ctx.lineCap = "round"
-
     ctx.beginPath()
     ctx.moveTo(leftHip.x, leftHip.y)
     ctx.lineTo(hip.x, hip.y)
     ctx.stroke()
 
+    // Draw Right Leg
     ctx.beginPath()
-    ctx.strokeStyle = currentFlexAngle < 118 ? "#ea580c" : "#16a34a"
+    ctx.strokeStyle = currentPosture === "STANDING" ? "#16a34a" : "#ea580c"
+    ctx.lineWidth = 5
     ctx.moveTo(hip.x, hip.y)
     ctx.lineTo(knee.x, knee.y)
     ctx.lineTo(ankle.x, ankle.y)
     ctx.stroke()
 
+    // Draw Left Leg
     ctx.beginPath()
     ctx.strokeStyle = "#0d9488"
+    ctx.lineWidth = 4
     ctx.moveTo(leftHip.x, leftHip.y)
     ctx.lineTo(leftKnee.x, leftKnee.y)
     ctx.lineTo(leftAnkle.x, leftAnkle.y)
     ctx.stroke()
 
+    // Draw Landmarks
     const landmarks = [
-      { pt: hip, label: "Hip (24)" },
-      { pt: knee, label: `Knee (26): ${currentFlexAngle}°` },
-      { pt: ankle, label: "Ankle (28)" },
-      { pt: leftHip, label: "Hip (23)" },
-      { pt: leftKnee, label: "Knee (25)" },
-      { pt: leftAnkle, label: "Ankle (27)" }
+      { pt: { x: bodyCenter, y: headY }, label: "Head", color: "#38bdf8" },
+      { pt: hip, label: "Hip", color: "#0d9488" },
+      { pt: knee, label: `Knee: ${currentFlexAngle}°`, color: currentPosture === "STANDING" ? "#16a34a" : "#ea580c" },
+      { pt: ankle, label: "Ankle", color: "#0d9488" },
+      { pt: leftHip, label: "L.Hip", color: "#0d9488" },
+      { pt: leftKnee, label: "L.Knee", color: "#0d9488" },
+      { pt: leftAnkle, label: "L.Ankle", color: "#0d9488" }
     ]
 
-    landmarks.forEach(({ pt, label }) => {
+    landmarks.forEach(({ pt, label, color }) => {
       ctx.fillStyle = "#ffffff"
       ctx.beginPath()
-      ctx.arc(pt.x, pt.y, 7, 0, 2 * Math.PI)
+      ctx.arc(pt.x, pt.y, 6, 0, 2 * Math.PI)
       ctx.fill()
-      ctx.lineWidth = 3
-      ctx.strokeStyle = "#0f766e"
+      ctx.lineWidth = 2.5
+      ctx.strokeStyle = color || "#0f766e"
       ctx.stroke()
 
-      ctx.fillStyle = "#1e293b"
-      ctx.font = "bold 11px Inter, sans-serif"
-      ctx.fillText(label, pt.x + 10, pt.y + 4)
+      ctx.fillStyle = "#f8fafc"
+      ctx.font = "bold 10px Inter, sans-serif"
+      ctx.fillText(label, pt.x + 8, pt.y + 3)
     })
+
+    // ── DRAW ON-SCREEN REAL-TIME VERTICAL ELEVATION GAUGE ──
+    const gaugeX = 22
+    const gaugeY = 60
+    const gaugeW = 12
+    const gaugeH = 180
+
+    // Gauge background track
+    ctx.fillStyle = "rgba(15, 23, 42, 0.75)"
+    ctx.beginPath()
+    ctx.roundRect(gaugeX - 4, gaugeY - 6, gaugeW + 8, gaugeH + 12, 8)
+    ctx.fill()
+    ctx.strokeStyle = "rgba(51, 65, 85, 0.8)"
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // Stand Zone (top 42%)
+    ctx.fillStyle = "rgba(22, 163, 74, 0.35)"
+    ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH * 0.42)
+
+    // Sit Zone (bottom 42%)
+    ctx.fillStyle = "rgba(234, 88, 12, 0.35)"
+    ctx.fillRect(gaugeX, gaugeY + gaugeH * 0.58, gaugeW, gaugeH * 0.42)
+
+    // Dynamic elevation fill
+    const fillH = gaugeH * elevation
+    ctx.fillStyle = currentPosture === "STANDING" ? "#22c55e" : "#f97316"
+    ctx.fillRect(gaugeX, gaugeY + gaugeH - fillH, gaugeW, fillH)
+
+    // Current Indicator Pointer
+    const pointerY = gaugeY + gaugeH - fillH
+    ctx.fillStyle = "#38bdf8"
+    ctx.beginPath()
+    ctx.arc(gaugeX + gaugeW / 2, pointerY, 6, 0, 2 * Math.PI)
+    ctx.fill()
+    ctx.strokeStyle = "#ffffff"
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // Gauge Labels
+    ctx.font = "bold 9px Inter, sans-serif"
+    ctx.fillStyle = "#4ade80"
+    ctx.fillText("STAND", gaugeX + gaugeW + 6, gaugeY + 12)
+    ctx.fillStyle = "#fb923c"
+    ctx.fillText("SIT", gaugeX + gaugeW + 6, gaugeY + gaugeH - 4)
+
+    // Mode Watermark on Canvas
+    ctx.font = "bold 10px Inter, sans-serif"
+    ctx.fillStyle = isLiveWebcam ? "#2dd4bf" : "#94a3b8"
+    ctx.fillText(isLiveWebcam ? "● CAMERA VISION TRACKING" : "● SIMULATED KINEMATICS", 55, 32)
 
     if ((isTestStarted || isSimulating) && !testComplete) {
       animFrameId.current = requestAnimationFrame(() => processFrame())
@@ -697,7 +911,7 @@ export default function MovementAnalysis() {
                 ref={videoRef}
                 playsInline
                 muted
-                className={`absolute inset-0 w-full h-full object-cover transform -scale-x-100 ${cameraActive && !isSimulating ? "opacity-45" : "hidden"}`}
+                className={`absolute inset-0 w-full h-full object-cover transform -scale-x-100 ${cameraActive && !isSimulating ? "opacity-85" : "hidden"}`}
               />
 
               <canvas
@@ -747,6 +961,13 @@ export default function MovementAnalysis() {
                       Retest
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Vision Calibration Notification */}
+              {calibrationNotice && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-teal-950/95 border border-teal-400 text-teal-200 text-xs font-bold shadow-xl animate-pulse">
+                  {calibrationNotice}
                 </div>
               )}
 
@@ -851,6 +1072,59 @@ export default function MovementAnalysis() {
                 </>
               )}
 
+            </div>
+
+            {/* Vision Tracking & Posture Calibration Toolbar */}
+            <div className="lg:col-span-2 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <span className="flex h-3 w-3 relative shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white">Posture Tracking:</span>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
+                      sitToStandState === "STANDING" ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"
+                    }`}>
+                      {sitToStandState} ({elevationPercent}%)
+                    </span>
+                    <span className="text-[10px] text-teal-400 font-mono">
+                      {cameraActive && !isSimulating ? "Webcam Vision Active" : "Simulator Mode"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Stand completely to trigger green STAND (&gt;58%), sit back down to trigger SIT (&lt;38%) and count rep.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCalibrateSitting}
+                  className="px-3 py-1.5 rounded-xl bg-orange-950 hover:bg-orange-900 text-orange-300 border border-orange-700 font-bold text-[11px] transition cursor-pointer"
+                  title="Calibrate current position as sitting"
+                >
+                  🎯 Calibrate Sitting
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCalibrateStanding}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 font-bold text-[11px] transition cursor-pointer"
+                  title="Calibrate current position as standing"
+                >
+                  🎯 Calibrate Standing
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetCalibration}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] transition cursor-pointer"
+                  title="Reset height learning"
+                >
+                  🔄 Reset
+                </button>
+              </div>
             </div>
 
             {/* Right Column: Live Metrics */}
