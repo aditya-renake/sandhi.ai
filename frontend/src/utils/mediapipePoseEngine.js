@@ -12,29 +12,39 @@
 
 // 1. Calculate true 3D Euclidean angle using vector dot product in metric meters
 export function calculate3DMetricAngle(p1, p2, p3) {
-  if (!p1 || !p2 || !p3) return 0
+  if (!p1 || !p2) return 0
 
   // Vector u = p1 - p2 (Hip to Knee)
   const ux = p1.x - p2.x
   const uy = p1.y - p2.y
   const uz = (p1.z ?? 0) - (p2.z ?? 0)
+  const magU = Math.sqrt(ux * ux + uy * uy + uz * uz)
+  if (magU === 0) return 0
 
-  // Vector v = p3 - p2 (Ankle to Knee)
-  const vx = p3.x - p2.x
-  const vy = p3.y - p2.y
-  const vz = (p3.z ?? 0) - (p2.z ?? 0)
+  // If ankle p3 is not provided or occluded, approximate vertical shank downwards from knee
+  let vx, vy, vz
+  if (p3) {
+    // Vector v = p3 - p2 (Ankle to Knee)
+    vx = p3.x - p2.x
+    vy = p3.y - p2.y
+    vz = (p3.z ?? 0) - (p2.z ?? 0)
+  } else {
+    // Shank assumed vertical downward along Y axis in camera view
+    vx = 0
+    vy = magU
+    vz = 0
+  }
 
   const dot = ux * vx + uy * vy + uz * vz
-  const magU = Math.sqrt(ux * ux + uy * uy + uz * uz)
   const magV = Math.sqrt(vx * vx + vy * vy + vz * vz)
 
-  if (magU === 0 || magV === 0) return 0
+  if (magV === 0) return 0
   const cosTheta = Math.max(-1.0, Math.min(1.0, dot / (magU * magV)))
   return (Math.acos(cosTheta) * 180.0) / Math.PI
 }
 
 // 2. Visibility / Occlusion Gating
-export const VISIBILITY_THRESHOLD = 0.65
+export const VISIBILITY_THRESHOLD = 0.35
 
 export function evaluateLegVisibility(landmarks, side = "auto") {
   if (!landmarks || landmarks.length < 33) {
@@ -47,8 +57,8 @@ export function evaluateLegVisibility(landmarks, side = "auto") {
   const rHip = landmarks[24], rKnee = landmarks[26], rAnkle = landmarks[28]
   const lHip = landmarks[23], lKnee = landmarks[25], lAnkle = landmarks[27]
 
-  const rVis = ((rHip?.visibility ?? 0) + (rKnee?.visibility ?? 0) + (rAnkle?.visibility ?? 0)) / 3.0
-  const lVis = ((lHip?.visibility ?? 0) + (lKnee?.visibility ?? 0) + (lAnkle?.visibility ?? 0)) / 3.0
+  const rVis = ((rHip?.visibility ?? 0) * 1.2 + (rKnee?.visibility ?? 0) * 1.2 + (rAnkle?.visibility ?? 0) * 0.6) / 3.0
+  const lVis = ((lHip?.visibility ?? 0) * 1.2 + (lKnee?.visibility ?? 0) * 1.2 + (lAnkle?.visibility ?? 0) * 0.6) / 3.0
 
   let chosenSide = side
   if (chosenSide === "auto") {
@@ -60,22 +70,27 @@ export function evaluateLegVisibility(landmarks, side = "auto") {
   const ankle = chosenSide === "right" ? rAnkle : lAnkle
   const avgVis = chosenSide === "right" ? rVis : lVis
 
-  // Gate if any individual critical joint is occluded below threshold
-  const isOccluded = (hip?.visibility ?? 0) < VISIBILITY_THRESHOLD ||
-                     (knee?.visibility ?? 0) < VISIBILITY_THRESHOLD ||
-                     (ankle?.visibility ?? 0) < (VISIBILITY_THRESHOLD - 0.15) // Ankles may sometimes graze edge
+  const hipVis = hip?.visibility ?? 0
+  const kneeVis = knee?.visibility ?? 0
+  const ankleVis = ankle?.visibility ?? 0
+
+  // Hip and knee are essential for movement analysis; ankles are often cropped near the floor
+  const isHipKneeVisible = hipVis >= VISIBILITY_THRESHOLD && kneeVis >= VISIBILITY_THRESHOLD
+  const isAnkleVisible = ankleVis >= 0.20
+  const isOccluded = !isHipKneeVisible
 
   return {
-    isValid: !isOccluded && avgVis >= 0.55,
+    isValid: isHipKneeVisible,
     isOccluded,
+    ankleOccluded: !isAnkleVisible,
     side: chosenSide,
     avgVis: Number(avgVis.toFixed(2)),
     hip,
     knee,
-    ankle,
-    hipVis: hip?.visibility ?? 0,
-    kneeVis: knee?.visibility ?? 0,
-    ankleVis: ankle?.visibility ?? 0
+    ankle: isAnkleVisible ? ankle : null,
+    hipVis,
+    kneeVis,
+    ankleVis
   }
 }
 
@@ -163,8 +178,8 @@ export function createMediaPipePoseInstance(onResultsCallback, complexity = 1) {
     smoothLandmarks: true,
     enableSegmentation: false,
     smoothSegmentation: false,
-    minDetectionConfidence: 0.65,
-    minTrackingConfidence: 0.65
+    minDetectionConfidence: 0.50,
+    minTrackingConfidence: 0.50
   })
 
   pose.onResults(onResultsCallback)
