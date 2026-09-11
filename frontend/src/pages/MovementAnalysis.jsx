@@ -86,6 +86,76 @@ export default function MovementAnalysis() {
   const [selectedLang, setSelectedLang] = useState(() => localStorage.getItem("sandhi_lang") || "en")
   const [isPlayingVoicePreview, setIsPlayingVoicePreview] = useState(false)
 
+  const isTestStartedRef = useRef(isTestStarted)
+  const testCompleteRef = useRef(testComplete)
+  const selectedLangRef = useRef(selectedLang)
+  const cameraActiveRef = useRef(cameraActive)
+  const isSimulatingRef = useRef(isSimulating)
+  const clinicalProfileRef = useRef(clinicalProfile)
+  const repCountRef = useRef(repCount)
+  const kneeAngleRef = useRef(kneeAngle)
+  const lastMediaPipeAngleTimeRef = useRef(0)
+  const processFrameRef = useRef(null)
+
+  useEffect(() => {
+    isTestStartedRef.current = isTestStarted
+  }, [isTestStarted])
+
+  useEffect(() => {
+    testCompleteRef.current = testComplete
+  }, [testComplete])
+
+  useEffect(() => {
+    selectedLangRef.current = selectedLang
+  }, [selectedLang])
+
+  useEffect(() => {
+    cameraActiveRef.current = cameraActive
+  }, [cameraActive])
+
+  useEffect(() => {
+    isSimulatingRef.current = isSimulating
+  }, [isSimulating])
+
+  useEffect(() => {
+    clinicalProfileRef.current = clinicalProfile
+  }, [clinicalProfile])
+
+  useEffect(() => {
+    repCountRef.current = repCount
+  }, [repCount])
+
+  useEffect(() => {
+    kneeAngleRef.current = kneeAngle
+  }, [kneeAngle])
+
+  // Accessibility & Manual Testing: Spacebar toggles Sit / Stand
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === "Space" && e.target.tagName !== "INPUT" && e.target.tagName !== "BUTTON" && e.target.tagName !== "TEXTAREA") {
+        e.preventDefault()
+        const newPosture = lastPostureRef.current === "STANDING" ? "SITTING" : "STANDING"
+        lastPostureRef.current = newPosture
+        setSitToStandState(newPosture)
+        if (newPosture === "SITTING") {
+          const now = Date.now()
+          if (isTestStartedRef.current && !testCompleteRef.current && now - repCooldownRef.current > 600) {
+            repCooldownRef.current = now
+            setRepCount((prev) => {
+              const next = Math.min(10, prev + 1)
+              repCountRef.current = next
+              playPleasantChime()
+              speakRepPraise(next, selectedLangRef.current)
+              return next
+            })
+          }
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
   useEffect(() => {
     const onLangChange = (e) => {
       if (e.detail) setSelectedLang(e.detail)
@@ -141,18 +211,21 @@ export default function MovementAnalysis() {
 
   const handleCompleteTest = (reason) => {
     setTestComplete(true)
+    testCompleteRef.current = true
     setIsTestStarted(false)
+    isTestStartedRef.current = false
     setCompletionReason(reason)
     stopCamera()
 
-    const prompt = VOICE_PROMPTS[selectedLang] || VOICE_PROMPTS.en
+    const prompt = VOICE_PROMPTS[selectedLangRef.current] || VOICE_PROMPTS.en
+    const finalReps = repCountRef.current ?? repCount
     if (reason === "10_REPS") {
-      speakText(prompt.tenRepsFinished, selectedLang)
+      speakText(prompt.tenRepsFinished, selectedLangRef.current)
     } else {
-      if (selectedLang === "en") {
-        speakText(`${prompt.testFinished} You completed ${repCount} repetitions!`, "en")
+      if (selectedLangRef.current === "en") {
+        speakText(`${prompt.testFinished} You completed ${finalReps} repetitions!`, "en")
       } else {
-        speakText(prompt.testFinished, selectedLang)
+        speakText(prompt.testFinished, selectedLangRef.current)
       }
     }
   }
@@ -161,8 +234,13 @@ export default function MovementAnalysis() {
   const triggerStartTest = (useWebcam = true) => {
     setActiveMode("TEST")
     setRepCount(0)
+    repCountRef.current = 0
     setTimerSeconds(30)
     setTestComplete(false)
+    testCompleteRef.current = false
+    setIsTestStarted(false)
+    isTestStartedRef.current = false
+    lastPostureRef.current = "SITTING"
     playPleasantChime()
     setCountdown(3)
 
@@ -192,8 +270,18 @@ export default function MovementAnalysis() {
       setTimeout(() => {
         setCountdown(null)
         setIsTestStarted(true)
+        isTestStartedRef.current = true
         if (!useWebcam) {
           launchSimulation()
+        } else {
+          if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
+          animFrameId.current = requestAnimationFrame(() => {
+            if (processFrameRef.current) {
+              processFrameRef.current()
+            } else {
+              processFrame()
+            }
+          })
         }
       }, 700)
     }, 3000)
@@ -214,13 +302,29 @@ export default function MovementAnalysis() {
   }
 
   // Clinical MediaPipe Results Callback
+  // Clinical MediaPipe Results Callback
   const handleMediaPipeResults = (results) => {
     if (!results || !results.poseLandmarks) return
 
-    // 1. Occlusion / Visibility Gating (>0.65 threshold)
+    // Draw Live Skeleton Overlay from MediaPipe 2D Landmarks
+    // Read real Nose (0) & Shoulders (11, 12) for upper body vertical position
+    if (results.poseLandmarks[0]) {
+      const nose = results.poseLandmarks[0]
+      const lSh = results.poseLandmarks[11]
+      const rSh = results.poseLandmarks[12]
+      if (nose.visibility > 0.35) {
+        let headY = nose.y
+        if (lSh && rSh && lSh.visibility > 0.25 && rSh.visibility > 0.25) {
+          headY = (nose.y * 2 + lSh.y + rSh.y) / 4.0
+        }
+        currentHeadYRef.current = headY
+      }
+    }
+
+    // 1. Occlusion / Visibility Gating
     const visEval = evaluateLegVisibility(results.poseLandmarks, "auto")
     if (!visEval.isValid) {
-      setOcclusionWarning("⚠️ Occlusion Gated: Joint confidence < 0.65 (Keep hip/knee in view)")
+      setOcclusionWarning("⚠️ Occlusion Gated: Keep hip and knee in view")
       return
     } else {
       setOcclusionWarning("")
@@ -239,7 +343,7 @@ export default function MovementAnalysis() {
       setIsUsingWorldLandmarks(true)
       const hip = visEval.side === "right" ? results.poseWorldLandmarks[24] : results.poseWorldLandmarks[23]
       const knee = visEval.side === "right" ? results.poseWorldLandmarks[26] : results.poseWorldLandmarks[25]
-      const ankle = visEval.side === "right" ? results.poseWorldLandmarks[28] : results.poseWorldLandmarks[27]
+      const ankle = visEval.ankle ? (visEval.side === "right" ? results.poseWorldLandmarks[28] : results.poseWorldLandmarks[27]) : null
       rawAngle = calculate3DMetricAngle(hip, knee, ankle)
     } else {
       setIsUsingWorldLandmarks(false)
@@ -249,45 +353,31 @@ export default function MovementAnalysis() {
     // 4. Temporal Smoothing (EMA Filter eliminates jitter and false flips)
     const smoothedAngle = temporalFilterRef.current.update(rawAngle)
     if (smoothedAngle !== null && !isNaN(smoothedAngle)) {
+      kneeAngleRef.current = smoothedAngle
+      lastMediaPipeAngleTimeRef.current = Date.now()
       setKneeAngle(smoothedAngle)
       setMinFlexion(prev => Math.min(prev, smoothedAngle))
       setMaxExtension(prev => Math.max(prev, smoothedAngle))
 
-      // 5. Hysteresis State Machine for Sit/Stand Transitions
-      if (smoothedAngle >= 148 && lastPostureRef.current !== "STANDING") {
+      // 5. Hysteresis State Machine for Sit/Stand Transitions (CDC / ACR Chair Stand Standard)
+      if (smoothedAngle >= 140 && lastPostureRef.current !== "STANDING") {
         setSitToStandState("STANDING")
         lastPostureRef.current = "STANDING"
-        setElevationPercent(90)
         playPleasantChime()
-      } else if (smoothedAngle <= 108 && lastPostureRef.current === "STANDING") {
+      } else if (smoothedAngle <= 124 && lastPostureRef.current === "STANDING") {
         setSitToStandState("SITTING")
         lastPostureRef.current = "SITTING"
-        setElevationPercent(15)
         const now = Date.now()
-        if (now - repCooldownRef.current > 700) {
+        if (isTestStartedRef.current && !testCompleteRef.current && now - repCooldownRef.current > 600) {
           repCooldownRef.current = now
           setRepCount(prev => {
-            const next = prev + 1
+            const next = Math.min(10, prev + 1)
+            repCountRef.current = next
             playPleasantChime()
-            speakRepPraise(next, selectedLang)
+            speakRepPraise(next, selectedLangRef.current)
             return next
           })
         }
-      }
-    }
-
-    // Draw Live Skeleton Overlay from MediaPipe 2D Landmarks
-    // Read real Nose (0) & Shoulders (11, 12) for upper body vertical position
-    if (results.poseLandmarks && results.poseLandmarks[0]) {
-      const nose = results.poseLandmarks[0]
-      const lSh = results.poseLandmarks[11]
-      const rSh = results.poseLandmarks[12]
-      if (nose.visibility > 0.35) {
-        let headY = nose.y
-        if (lSh && rSh && lSh.visibility > 0.25 && rSh.visibility > 0.25) {
-          headY = (nose.y * 2 + lSh.y + rSh.y) / 4.0
-        }
-        currentHeadYRef.current = headY
       }
     }
   }
@@ -410,7 +500,9 @@ export default function MovementAnalysis() {
       })
       streamRef.current = stream
       setCameraActive(true)
+      cameraActiveRef.current = true
       setIsSimulating(false)
+      isSimulatingRef.current = false
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -424,7 +516,13 @@ export default function MovementAnalysis() {
       initMediaPipePose(modelComplexity)
 
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
-      animFrameId.current = requestAnimationFrame(() => processFrame())
+      animFrameId.current = requestAnimationFrame(() => {
+        if (processFrameRef.current) {
+          processFrameRef.current()
+        } else {
+          processFrame()
+        }
+      })
     } catch (err) {
       console.warn("Camera access fallback to simulation:", err)
       setCameraError("Camera unavailable. Using Biomechanics Detection Simulator.")
@@ -432,13 +530,19 @@ export default function MovementAnalysis() {
     }
   }
 
-  
-
   const launchSimulation = () => {
     setIsSimulating(true)
+    isSimulatingRef.current = true
     setCameraActive(true)
+    cameraActiveRef.current = true
     if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
-    animFrameId.current = requestAnimationFrame(() => processFrame())
+    animFrameId.current = requestAnimationFrame(() => {
+      if (processFrameRef.current) {
+        processFrameRef.current()
+      } else {
+        processFrame()
+      }
+    })
   }
 
   // ── REAL COMPUTER VISION FACE & UPPER-BODY Y TRACKER ──
@@ -502,7 +606,7 @@ export default function MovementAnalysis() {
     ctx.clearRect(0, 0, width, height)
 
     let elevation = 0.2
-    const isLiveWebcam = cameraActive && !isSimulating && videoRef.current
+    const isLiveWebcam = (cameraActiveRef.current || cameraActive) && !(isSimulatingRef.current || isSimulating) && videoRef.current
 
     // Send frame to MediaPipe Pose detector if loaded
     if (isLiveWebcam && poseInstanceRef.current && videoRef.current.readyState >= 2) {
@@ -539,7 +643,8 @@ export default function MovementAnalysis() {
         elevation = smoothElevationRef.current
       }
     } else {
-      const speedDivisor = clinicalProfile === "healthy" ? 210 : clinicalProfile === "severe" ? 540 : 330
+      const profile = clinicalProfileRef.current || clinicalProfile
+      const speedDivisor = profile === "healthy" ? 210 : profile === "severe" ? 540 : 330
       const t = simulatedProgress !== null ? simulatedProgress : Date.now() / speedDivisor
       elevation = (Math.sin(t) + 1) / 2
       smoothElevationRef.current = elevation
@@ -549,9 +654,9 @@ export default function MovementAnalysis() {
 
     // Determine Posture with hysteresis
     let currentPosture = lastPostureRef.current
-    if (elevation >= 0.52) {
+    if (elevation >= 0.50) {
       currentPosture = "STANDING"
-    } else if (elevation <= 0.38) {
+    } else if (elevation <= 0.40) {
       currentPosture = "SITTING"
     }
 
@@ -564,28 +669,35 @@ export default function MovementAnalysis() {
       setSitToStandState("SITTING")
 
       const now = Date.now()
-      if (now - repCooldownRef.current > 600) {
+      if (isTestStartedRef.current && !testCompleteRef.current && now - repCooldownRef.current > 600) {
         repCooldownRef.current = now
         setRepCount((prevReps) => {
-          const nextReps = prevReps + 1
+          const nextReps = Math.min(10, prevReps + 1)
+          repCountRef.current = nextReps
           playPleasantChime()
-          speakRepPraise(nextReps, selectedLang)
+          speakRepPraise(nextReps, selectedLangRef.current)
           return nextReps
         })
       }
     }
 
     // Dynamic knee angle from real elevation
-    const lowAngle = clinicalProfile === "healthy" ? 74 : clinicalProfile === "severe" ? 104 : 88
-    const highAngle = clinicalProfile === "healthy" ? 174 : clinicalProfile === "severe" ? 148 : 166
+    const profile = clinicalProfileRef.current || clinicalProfile
+    const lowAngle = profile === "healthy" ? 74 : profile === "severe" ? 104 : 88
+    const highAngle = profile === "healthy" ? 174 : profile === "severe" ? 148 : 166
     const currentFlexAngle = Math.round(lowAngle + elevation * (highAngle - lowAngle))
 
-    setKneeAngle(currentFlexAngle)
-    setMinFlexion(prev => Math.min(prev, currentFlexAngle))
-    setMaxExtension(prev => Math.max(prev, currentFlexAngle))
+    const isLiveMediaPipeActive = isLiveWebcam && (Date.now() - lastMediaPipeAngleTimeRef.current < 1000)
+    const displayAngle = isLiveMediaPipeActive ? (kneeAngleRef.current || currentFlexAngle) : currentFlexAngle
+
+    if (!isLiveMediaPipeActive) {
+      setKneeAngle(currentFlexAngle)
+      setMinFlexion(prev => Math.min(prev, currentFlexAngle))
+      setMaxExtension(prev => Math.max(prev, currentFlexAngle))
+    }
 
     // ── 1. DRAW BIOMECHANICAL HUMAN BODY AVATAR (Left Side Pod) ──
-    drawBiomechanicalAvatar(ctx, 16, 75, 140, 260, elevation, currentPosture, currentFlexAngle)
+    drawBiomechanicalAvatar(ctx, 16, 75, 140, 260, elevation, currentPosture, displayAngle)
 
     // ── 2. DRAW HEAD LEVEL LASER TRACKER ON VIDEO (NO LINES ON FACE!) ──
     const displayHeadY = (observedHeadY || (sittingHeadYRef.current - elevation * (sittingHeadYRef.current - standingHeadYRef.current))) * height
@@ -631,10 +743,18 @@ export default function MovementAnalysis() {
     ctx.fillText(`👤 Head (${Math.round(elevation * 100)}%)`, width - 130, displayHeadY - 5)
     ctx.restore()
 
-    if ((isTestStarted || isSimulating) && !testComplete) {
-      animFrameId.current = requestAnimationFrame(() => processFrame())
+    if ((cameraActiveRef.current || isTestStartedRef.current || isSimulatingRef.current) && !testCompleteRef.current) {
+      animFrameId.current = requestAnimationFrame(() => {
+        if (processFrameRef.current) {
+          processFrameRef.current()
+        } else {
+          processFrame()
+        }
+      })
     }
   }
+
+  processFrameRef.current = processFrame
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -645,7 +765,10 @@ export default function MovementAnalysis() {
       cancelAnimationFrame(animFrameId.current)
     }
     setCameraActive(false)
+    cameraActiveRef.current = false
     setIsSimulating(false)
+    isSimulatingRef.current = false
+    isTestStartedRef.current = false
   }
 
   const continueToAIAnalysis = () => {
@@ -663,12 +786,13 @@ export default function MovementAnalysis() {
     } catch (e) {}
 
     const romCalculated = Math.max(25, maxExtension - minFlexion)
+    const finalReps = repCountRef.current ?? repCount
 
     const movementData = {
       gait: { value: `${Math.round(alignmentRatio * 100)}%`, status: alignmentStatus },
       knee: { value: `${romCalculated}° ROM`, status: romCalculated < 75 ? "Severe ROM Deficit" : romCalculated < 100 ? "Mild ROM Deficit" : "Normal ROM" },
-      posture: { value: `${repCount} Reps`, status: repCount >= 10 ? "Target 10 Reps Achieved" : `${repCount} Reps in 30s` },
-      sitToStandReps: repCount,
+      posture: { value: `${finalReps} Reps`, status: finalReps >= 10 ? "Target 10 Reps Achieved" : `${finalReps} Reps in 30s` },
+      sitToStandReps: finalReps,
       timeElapsed: Math.max(1, 30 - timerSeconds),
       flexionAngle: minFlexion,
       extensionAngle: maxExtension,
