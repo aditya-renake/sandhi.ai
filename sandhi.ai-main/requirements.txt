@@ -1,0 +1,26 @@
+# Core API dependencies (Vercel-safe, ~60MB total)
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+pydantic[email]>=2.6.0
+
+# PostgreSQL (Supabase) — replaces aiosqlite
+sqlalchemy[asyncio]>=2.0.28
+asyncpg>=0.29.0
+greenlet>=3.0.0
+
+# Auth & Security
+python-multipart>=0.0.9
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt==4.0.1
+
+# Utilities
+email-validator>=2.1.0
+numpy>=1.26.0
+pillow>=10.2.0
+
+# PDF reports
+reportlab>=4.1.0
+qrcode[pil]>=7.4.2
