@@ -3,7 +3,20 @@ import { addScreening } from "../utils/screeningsStore"
 import { useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import ScreeningStepper from "../components/ScreeningStepper"
-import { updateScreeningStep, getActiveUser } from "../utils/supabaseClient"
+import { updateScreeningStep } from "../utils/supabaseClient"
+import { 
+  HeartPulse, 
+  CheckCircle2, 
+  Printer, 
+  PhoneCall, 
+  ArrowRight, 
+  Building2, 
+  Activity, 
+  Clock, 
+  Smile, 
+  HelpCircle,
+  AlertTriangle
+} from "lucide-react"
 
 export default function Results() {
   const navigate = useNavigate()
@@ -23,7 +36,7 @@ export default function Results() {
     age: 58,
     gender: "Female",
     state: "Assam",
-    district: "Kamrup Metropolitan",
+    district: "Kamrup",
     joint: "Right Knee",
     abhaId: "14-5829-1029-4821"
   }
@@ -57,11 +70,11 @@ export default function Results() {
       timestamp: new Date().toISOString(),
       patient: {
         name: patient.name || "Unknown Patient",
-        age: Number(patient.age) || 55,
+        age: Number(patient.age) || 58,
         gender: patient.gender || "Female",
         phone: patient.phone || "+91 98640 12000",
         state: patient.state || "Assam",
-        district: patient.district || "Kamrup Metropolitan",
+        district: patient.district || "Kamrup",
         joint: patient.joint || "Right Knee",
         occupation: patient.occupation || "Agricultural Worker",
         abhaId: patient.abhaId || "14-" + Math.floor(1000 + Math.random() * 9000) + "-2026-4821"
@@ -101,380 +114,253 @@ export default function Results() {
     setTimeout(() => {
       window.print()
       setDownloading(false)
-    }, 400)
+    }, 300)
   }
 
+  // Friendly title & text based on risk
+  const isLow = riskCategory === "LOW"
+  const isModerate = riskCategory === "MODERATE"
+  const isHigh = riskCategory === "HIGH"
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-teal-100 selection:text-teal-900 pb-20">
+      
+      {/* Top Navbar */}
       <Navbar />
+
+      {/* Stepper with step 4 */}
       <ScreeningStepper currentStep={4} />
 
-      <main className="mx-auto max-w-4xl p-4 md:p-8">
+      <main className="mx-auto max-w-4xl p-4 sm:p-6 md:p-8 space-y-6">
         
-        {/* Header */}
-        <div className="text-center mb-8">
-          <span className="rounded-full bg-teal-100 text-teal-800 font-bold px-3 py-1 text-xs uppercase tracking-wider">
-            Screening Protocol Complete &bull; Multi-Modal AI Output
-          </span>
-          <h1 className="mt-2 text-3xl font-black text-slate-900">
-            Osteoarthritis Clinical Risk Evaluation
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Patient-specific diagnostic synthesis generated for MDoNER PS 26004
-          </p>
-        </div>
-
-        {/* Real-Time Telemetry Synchronization Notice */}
-        <div className="mb-6 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-emerald-200">
-          <div className="flex items-center gap-3">
-            <span className="flex h-3 w-3 relative shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        {/* Patient Bar & Print Button */}
+        <div className="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <span className="text-xs font-bold text-teal-800 bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-200">
+              Knee Health Summary & Report
             </span>
-            <div>
-              <p className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                <span>⚡ Automatically Synchronized with Doctor & Admin Hub</span>
-                <span className="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-full border border-emerald-700 text-emerald-300 font-mono">LIVE SYNC</span>
-              </p>
-              <p className="text-[11px] text-emerald-300 mt-0.5">
-                Screening biomarkers for <b>{patient.name}</b> (ABHA: {patient.abhaId || "14-xxxx"}) are now immediately viewable in the clinical command dashboard.
-              </p>
-            </div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
+              Report for {patient.name || "Patient"}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              {patient.age || 58} years &bull; {patient.gender || "Female"} &bull; {patient.joint || "Right Knee"} &bull; {patient.state || "Assam"}
+            </p>
           </div>
+
           <button
-            onClick={() => navigate("/")}
-            className="shrink-0 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md cursor-pointer flex items-center gap-1"
+            type="button"
+            onClick={handleDownloadPDF}
+            className="self-start sm:self-center px-4 py-2.5 rounded-xl border border-teal-600 bg-teal-50 hover:bg-teal-100 text-teal-900 text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer shadow-2xs transition"
           >
-            <span>Inspect in Admin Hub →</span>
+            <Printer size={16} className="text-teal-700" />
+            <span>{downloading ? "Preparing..." : "Print / Save PDF"}</span>
           </button>
         </div>
 
-        {/* Patient Bar */}
-        <div className="rounded-2xl bg-white border border-slate-200 p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs">
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-lg font-bold text-slate-900">{patient.name}</p>
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 font-medium">
-                {patient.age}y &bull; {patient.gender}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              ABHA: <b className="font-mono text-slate-700">{patient.abhaId || "14-5829-1029-4821"}</b> &bull; {patient.joint || "Right Knee"} &bull; {patient.district}, {patient.state}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleDownloadPDF}
-              className="rounded-xl border border-teal-600 bg-teal-50 px-4 py-2.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            >
-              <span>📄</span>
-              <span>{downloading ? "Generating PDF..." : "Export Clinical PDF"}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Score Card */}
-        <div className="rounded-2xl bg-white border border-slate-200 p-8 text-center shadow-xs">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Patient Multi-Modal Composite Risk Score
-          </p>
-
-          <p className={`mt-3 text-7xl font-black font-mono tracking-tight ${
-            riskCategory === "HIGH" ? "text-red-600" :
-            riskCategory === "MODERATE" ? "text-orange-600" : "text-emerald-600"
-          }`}>
-            {compositeScore}
-            <span className="text-2xl text-slate-400 font-normal"> / 100</span>
-          </p>
-
-          <div className="mt-3 flex justify-center">
-            <span className={`px-5 py-1.5 rounded-full text-xs font-black tracking-wider uppercase ${
-              riskCategory === "HIGH" ? "bg-red-100 text-red-700 border border-red-200" :
-              riskCategory === "MODERATE" ? "bg-orange-100 text-orange-700 border border-orange-200" : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-            }`}>
-              {riskCategory} RISK &bull; KELLGREN-LAWRENCE GRADE {klProxy} PROXY
+        {/* Big Reassuring Status Card */}
+        <div className={`rounded-3xl p-6 sm:p-8 text-center border-2 shadow-xs ${
+          isLow 
+            ? "bg-emerald-50/70 border-emerald-300 text-emerald-950" 
+            : isModerate 
+            ? "bg-amber-50/80 border-amber-300 text-amber-950" 
+            : "bg-rose-50/80 border-rose-300 text-rose-950"
+        }`}>
+          <div className="flex justify-center mb-3">
+            <span className="text-4xl">
+              {isLow ? "🟢" : isModerate ? "🟡" : "🔴"}
             </span>
           </div>
 
-          {/* Color Gradient Track */}
-          <div className="mx-auto mt-6 max-w-md">
-            <div className="h-3 w-full rounded-full bg-slate-200 overflow-hidden flex">
-              <div className="h-full bg-emerald-500" style={{ width: "35%" }} />
-              <div className="h-full bg-orange-400" style={{ width: "30%" }} />
-              <div className="h-full bg-rose-500" style={{ width: "35%" }} />
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] font-mono text-slate-400">
-              <span>0 Low (Grade 0-1)</span>
-              <span>35 Moderate (Grade 2)</span>
-              <span>65 High (Grade 3-4)</span>
-              <span>100</span>
-            </div>
-          </div>
+          <h2 className="text-2xl sm:text-3xl font-black">
+            {isLow 
+              ? "Good News: Your Knees are in Healthy Shape!"
+              : isModerate
+              ? "Mild to Moderate Knee Joint Wear"
+              : "Doctor Checkup Recommended for Your Knee"}
+          </h2>
 
-          <p className="mx-auto mt-4 max-w-lg text-xs text-slate-500 leading-relaxed">
-            Composite evaluation fuses MediaPipe 30s chair stand kinematics, SandhiBand™ VAG acoustic friction micro-bursts, clinical WOMAC index, and anatomical knee axis ratios.
+          <p className="mt-2 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+            {isLow 
+              ? "Your movement speed, bending range, and joint sounds show good joint mobility with little or no cartilage wear. Keep active with gentle daily walks!"
+              : isModerate
+              ? "You have some noticeable knee stiffness or discomfort during daily activities. Simple daily home exercises and leg strengthening will help protect your joints."
+              : "Your test results indicate significant knee pain, restricted movement, or joint friction. We recommend consulting a doctor or visiting your local health center for an in-person knee exam."}
           </p>
+
+          <div className="mt-6 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-2xs text-xs sm:text-sm font-bold text-slate-800">
+            <span>Overall Score: <strong>{compositeScore} / 100</strong></span>
+            <span>&bull;</span>
+            <span>Joint Condition: <strong className={isLow ? "text-emerald-700" : isModerate ? "text-amber-700" : "text-rose-700"}>{riskCategory}</strong></span>
+          </div>
         </div>
 
-        {/* Sandy AI 3-Pillar Sub-Score Breakdown */}
-        <div className="mt-6 rounded-2xl bg-white border border-slate-200 p-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <h3 className="text-base font-bold text-slate-900">
-              Sandy AI — Tri-Factor Multimodal Sub-Scores
-            </h3>
-            <span className="text-xs font-mono font-bold text-slate-500">
-              Final = (0.30 × Q) + (0.35 × CV) + (0.35 × HW)
-            </span>
-          </div>
+        {/* Plain Language Key Test Numbers */}
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 shadow-xs space-y-4">
+          <h3 className="text-base font-bold text-slate-900">
+            What Your Checkup Showed
+          </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-bold text-teal-700 uppercase">1. Questionnaire (30%)</span>
-                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.questionnaire_score ?? womacScore}/100</span>
-              </div>
-              <p className="text-[11px] text-slate-500">WOMAC pain, stiffness & physical function scale</p>
+            {/* Chair Stands */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-xs font-bold text-teal-800 uppercase">30s Chair Stand</span>
+              <p className="text-2xl font-black text-slate-900 mt-1">{reps} reps</p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {reps >= 10 ? "Great leg muscle power" : reps >= 6 ? "Moderate leg strength" : "Leg muscles need gentle strengthening"}
+              </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-bold text-cyan-700 uppercase">2. CV Kinematics (35%)</span>
-                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.cv_score ?? (reps < 8 ? 72 : 40)}/100</span>
-              </div>
-              <p className="text-[11px] text-slate-500">{reps} chair stands in 30s &bull; {rom}° ROM</p>
+            {/* Bending Range */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-xs font-bold text-teal-800 uppercase">Knee Bending</span>
+              <p className="text-2xl font-black text-slate-900 mt-1">{rom}°</p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {rom >= 105 ? "Smooth full flexibility" : rom >= 80 ? "Slight tightness when bending" : "Noticeable bending stiffness"}
+              </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-bold text-amber-700 uppercase">3. Hardware Sensor (35%)</span>
-                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.hardware_score ?? (burstCount >= 5 ? 65 : 35)}/100</span>
-              </div>
-              <p className="text-[11px] text-slate-500">{burstCount} VAG bursts &bull; {peakFrequency} Hz peak</p>
+            {/* Joint Sounds */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-xs font-bold text-teal-800 uppercase">Joint Sounds</span>
+              <p className="text-2xl font-black text-slate-900 mt-1">{burstCount} clicks</p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {burstCount <= 2 ? "Quiet, smooth joint" : burstCount <= 4 ? "Mild occasional popping" : "Frequent joint friction"}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Diagnostic Factor Breakdown (Now 100% Dynamic!) */}
-        <div className="mt-6 rounded-2xl bg-white border border-slate-200 p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900">
-              Diagnostic Biomarker Breakdown for {patient.name}
-            </h3>
-            <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-md border border-teal-200">
-              Calibrated Values
-            </span>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            
-            {/* 1. Range of Motion */}
-            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 flex items-start gap-3">
-              <span className="text-xl">📐</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-slate-900">Knee Range of Motion (ROM)</p>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                    rom < 75 ? "bg-red-100 text-red-700" : rom < 100 ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700"
-                  }`}>
-                    {rom}°
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {rom < 75 
-                    ? `Severe functional ROM restriction (${rom}°). Flexion contracture and significant terminal extension lag.`
-                    : rom < 100 
-                    ? `Moderate functional flexion deficit (${rom}° ROM). Mild stiffness during deep flexion.`
-                    : `Normal healthy joint flexibility (${rom}° ROM). Full extension and smooth flexion.`
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* 2. SandhiBand VAG Crepitus */}
-            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 flex items-start gap-3">
-              <span className="text-xl">⚡</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-slate-900">SandhiBand™ VAG Crepitus</p>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                    burstCount >= 6 ? "bg-red-100 text-red-700" : burstCount >= 3 ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700"
-                  }`}>
-                    {burstCount} Bursts &bull; {peakFrequency} Hz
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {burstCount >= 6 
-                    ? `Coarse high-frequency acoustic micro-bursts indicate significant articular cartilage erosion and bone-on-bone friction.`
-                    : burstCount >= 3 
-                    ? `Moderate vibration bursts captured during mid-flexion, indicative of early patellofemoral cartilage softening.`
-                    : `Smooth acoustic profile with low-frequency waves, confirming adequate synovial fluid lubrication.`
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* 3. 30-Second Chair Stand Repetitions */}
-            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 flex items-start gap-3">
-              <span className="text-xl">🪑</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-slate-900">30s Chair Stand Test (CST)</p>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                    reps < 6 ? "bg-red-100 text-red-700" : reps < 10 ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700"
-                  }`}>
-                    {reps} Reps
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {reps < 6 
-                    ? `Severely reduced lower extremity quadriceps power (${reps} reps). High functional fall risk.`
-                    : reps < 10 
-                    ? `Mild-to-moderate quadriceps weakness (${reps} reps). Patient required extended recovery time per stand.`
-                    : `Optimal quadriceps endurance and balance (${reps} reps completed with stable cadence).`
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* 4. Joint Alignment Ratio */}
-            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 flex items-start gap-3">
-              <span className="text-xl">⚖️</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-slate-900">Knee Anatomical Alignment</p>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                    varusValgus !== "Normal" ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700"
-                  }`}>
-                    {varusValgus} (Ratio: {alignmentRatio})
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {varusValgus === "Varus" 
-                    ? `Bow-leg varus angulation (ratio ${alignmentRatio} > 1.3) multiplies compressive forces on medial joint compartment.`
-                    : varusValgus === "Valgus" 
-                    ? `Knock-knee valgus axis shifts mechanical stress towards the lateral patellofemoral facet.`
-                    : `Neutral mechanical axis (ratio ${alignmentRatio}) protects against eccentric compartmental overloading.`
-                  }
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Clinical Referral Plan Tailored to Patient Risk */}
-        <div className={`mt-6 rounded-2xl p-6 shadow-xs border ${
-          riskCategory === "HIGH" ? "border-rose-200 bg-rose-50/70 text-rose-950" :
-          riskCategory === "MODERATE" ? "border-amber-200 bg-amber-50/70 text-amber-950" :
-          "border-emerald-200 bg-emerald-50/70 text-emerald-950"
-        }`}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold">
-              {riskCategory === "HIGH" ? "🚨 Priority Orthopedic Clinical Referral" :
-               riskCategory === "MODERATE" ? "🩺 Sub-Centre / PHC Physiotherapy Care Pathway" :
-               "🌿 Community Health & Prevention Guidance"}
-            </h3>
-            <span className="text-xs font-black uppercase tracking-wider">
-              Protocol: {riskCategory} Risk
-            </span>
-          </div>
-
-          <ul className="mt-3.5 space-y-2.5 text-xs">
-            {riskCategory === "HIGH" ? (
-              <>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-red-700 text-sm">&bull;</span>
-                  <span><b>Tertiary Referral:</b> Fast-track appointment at GMCH Guwahati / RIMS Imphal Orthopedic Department for radiographic Kellgren-Lawrence staging.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-red-700 text-sm">&bull;</span>
-                  <span><b>Viscosupplementation & Pain Management:</b> Evaluate candidate suitability for intra-articular hyaluronic acid or corticosteroid infiltration.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-red-700 text-sm">&bull;</span>
-                  <span><b>Terrain Unloading:</b> Provide supportive unloader knee brace and walking aid to alleviate steep terrace farming stress.</span>
-                </li>
-              </>
-            ) : riskCategory === "MODERATE" ? (
-              <>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-amber-700 text-sm">&bull;</span>
-                  <span><b>Community Physiotherapy:</b> Supervised isometric quadriceps strengthening and hamstring stretching 4 times weekly.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-amber-700 text-sm">&bull;</span>
-                  <span><b>Weight Management & Ergonomics:</b> Recommend joint-friendly seated workstations during agricultural sorting/tea garden duties.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-amber-700 text-sm">&bull;</span>
-                  <span><b>Quarterly ASHA Telemetry:</b> Repeat 30s chair stand and SandhiBand acoustic crepitus re-evaluation in 90 days.</span>
-                </li>
-              </>
-            ) : (
-              <>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-emerald-700 text-sm">&bull;</span>
-                  <span><b>Preventive Joint Health:</b> Maintain regular low-impact aerobic walking and aquatic/cycling exercises.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-emerald-700 text-sm">&bull;</span>
-                  <span><b>Dietary & Hydration Education:</b> Anti-inflammatory diet rich in calcium and vitamin D suited to North Eastern regional cuisine.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-bold text-emerald-700 text-sm">&bull;</span>
-                  <span><b>Annual Health Check:</b> Schedule routine community screening in 12 months.</span>
-                </li>
-              </>
-            )}
-          </ul>
-        </div>
-
-        {/* MANDATORY GUARDRAIL: CLINICAL DISCLAIMER */}
-        <div className="mt-6 rounded-2xl bg-amber-50 border border-amber-200 p-4.5 text-amber-900 flex items-start gap-3 shadow-xs">
-          <span className="text-xl shrink-0">⚠️</span>
+        {/* 4 Concrete Daily Home Care & Exercise Steps for Seniors */}
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
           <div>
-            <p className="text-xs font-bold text-amber-950 uppercase tracking-wide">
-              Mandatory Clinical Screening Guardrail
-            </p>
-            <p className="text-xs text-amber-900 mt-1 leading-relaxed">
-              Sandy AI is an AI-assisted early risk screening tool, not a definitive medical diagnosis. If your risk is moderate or high, consult a qualified Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
-            </p>
+            <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">
+              Daily Care for Seniors
+            </span>
+            <h3 className="text-xl font-bold text-slate-900 mt-0.5">
+              4 Simple Habits to Protect Your Knees Every Day
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            
+            {/* Habit 1 */}
+            <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 flex items-start gap-3.5">
+              <span className="text-2xl">🪑</span>
+              <div>
+                <h4 className="text-sm font-bold text-teal-950">Seated Knee Straightening</h4>
+                <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+                  Sit comfortably in a chair. Slowly raise and straighten one leg out in front of you. Hold for 5 seconds, then gently lower it. Repeat 10 times on each leg.
+                </p>
+              </div>
+            </div>
+
+            {/* Habit 2 */}
+            <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 flex items-start gap-3.5">
+              <span className="text-2xl">🚶</span>
+              <div>
+                <h4 className="text-sm font-bold text-teal-950">15 Minutes of Gentle Walking</h4>
+                <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+                  Walking on flat, even ground helps produce natural joint fluid that cushions your cartilage. Avoid steep steps or rough ground if your knee aches.
+                </p>
+              </div>
+            </div>
+
+            {/* Habit 3 */}
+            <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 flex items-start gap-3.5">
+              <span className="text-2xl">♨️</span>
+              <div>
+                <h4 className="text-sm font-bold text-teal-950">Warm Compress for Morning Stiffness</h4>
+                <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+                  If your knees feel tight when waking up, apply a warm towel or warm water bag for 10 minutes to relax muscles and improve circulation.
+                </p>
+              </div>
+            </div>
+
+            {/* Habit 4 */}
+            <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 flex items-start gap-3.5">
+              <span className="text-2xl">👟</span>
+              <div>
+                <h4 className="text-sm font-bold text-teal-950">Comfortable Footwear & Support</h4>
+                <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+                  Wear soft, flat footwear with a good cushioned sole and grip. Always use handrails when walking up or down stairs.
+                </p>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-6 flex flex-col sm:flex-row justify-between gap-3">
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate("/screening")}
-              className="rounded-xl bg-slate-900 border border-slate-700 px-5 py-2.5 text-xs font-bold text-teal-400 hover:bg-slate-800 transition cursor-pointer flex items-center gap-1.5"
-            >
-              ← Screening Hub
-            </button>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="rounded-xl border border-slate-300 px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-            >
-              Doctor Hub
-            </button>
+        {/* Doctor Consultation & Hospital Referral Guidance */}
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 shadow-xs space-y-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
+              <Building2 size={20} />
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-slate-900">
+                When Should You See a Doctor?
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-600 mt-0.5 leading-relaxed">
+                Consult a medical officer, orthopedic doctor, or visit your local Primary Health Center (PHC) if:
+              </p>
+              <ul className="mt-2 space-y-1 text-xs text-slate-700 list-disc list-inside">
+                <li>Your knee suddenly becomes swollen, red, or warm to the touch.</li>
+                <li>You feel sharp, unbearable pain that prevents you from putting any weight on your leg.</li>
+                <li>Your knee gives way or feels like it is locking up when you try to walk.</li>
+              </ul>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                localStorage.removeItem("sandhi_patient")
-                localStorage.removeItem("sandhi_womac")
-                localStorage.removeItem("sandhi_movement")
-                navigate("/registration")
-              }}
-              className="rounded-xl bg-teal-700 px-6 py-3 text-xs font-bold text-white hover:bg-teal-800 transition cursor-pointer shadow-sm"
-            >
-              + Start Next Patient Screening
-            </button>
+          {/* Tertiary Centers Mention */}
+          <div className="pt-3 border-t border-slate-100 text-xs text-slate-500">
+            For advanced clinical care in the North East, you can consult orthopedic departments at <b>GMCH Guwahati</b>, <b>NEIGRIHMS Shillong</b>, or <b>RIMS Imphal</b>.
           </div>
+        </div>
+
+        {/* Help & Helpline card */}
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <PhoneCall size={22} className="text-amber-800" />
+            <div>
+              <p className="text-sm font-bold text-amber-950">
+                Have questions or need someone to explain your results?
+              </p>
+              <p className="text-xs text-amber-900">
+                You can call our toll-free patient line: <b>1800-103-6004</b> (Monday to Saturday, 9 AM – 6 PM).
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="tel:18001036004"
+            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-2xs"
+          >
+            Call Support Now
+          </a>
+        </div>
+
+        {/* Bottom Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+          <button
+            type="button"
+            onClick={() => navigate("/screening")}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-sm cursor-pointer shadow-2xs transition"
+          >
+            ← Return to Screening Hub
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xs transition"
+          >
+            <span>Doctor / Clinic View</span>
+            <ArrowRight size={16} />
+          </button>
         </div>
 
       </main>
+
     </div>
   )
 }

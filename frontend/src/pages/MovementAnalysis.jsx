@@ -827,16 +827,18 @@ export default function MovementAnalysis() {
         {/* Header & Mode Switcher */}
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <span className="text-xs font-bold text-teal-700 uppercase tracking-wider">Step 3 of 4 &bull; Computer Vision Kinematics</span>
-            <h1 className="mt-1 text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-              30-Second Chair Stand Test (10 Reps Target)
+            <span className="text-xs font-bold text-teal-800 uppercase tracking-wider bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-200">
+              Step 2 of 4 &bull; 30-Second Movement Check
+            </span>
+            <h1 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+              30-Second Chair Stand Test (10 Reps Goal)
             </h1>
-            <p className="text-sm text-slate-500">
-              Watch the demonstration first, then click <b>Start Test Now</b> to begin the 3-2-1 countdown.
+            <p className="text-sm text-slate-600 mt-0.5">
+              Watch the short video demo below, then click <b>Start Test Now</b>. Spoken instructions will guide you.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-200/80 p-1 rounded-xl border border-slate-300">
+          <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
             <button
               onClick={() => {
                 setActiveMode("DEMO")
@@ -844,24 +846,41 @@ export default function MovementAnalysis() {
                 setIsTestStarted(false)
                 setTestComplete(false)
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                activeMode === "DEMO" ? "bg-white text-teal-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeMode === "DEMO" ? "bg-teal-700 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <span>📺</span>
-              <span>Human Demo Video</span>
+              <span>Watch Video Demo</span>
             </button>
 
             <button
               onClick={() => triggerStartTest(true)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                activeMode === "TEST" ? "bg-teal-700 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeMode === "TEST" ? "bg-teal-700 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <span>📷</span>
-              <span>Live Camera Test</span>
+              <span>Start Camera Test</span>
             </button>
           </div>
+        </div>
+
+        {/* SENIOR SAFETY NOTICE */}
+        <div className="mb-6 rounded-2xl bg-amber-50 border border-amber-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="text-xs sm:text-sm leading-relaxed">
+              <strong className="font-extrabold text-amber-900">Safety First for Seniors & Grandparents:</strong> Use a firm, steady chair placed against a wall so it won't move. If you feel unsteady, dizzy, or sharp knee pain, stop immediately.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={continueToAIAnalysis}
+            className="px-3.5 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-100 transition shrink-0 cursor-pointer shadow-2xs"
+          >
+            Skip to Joint Sound Check ➔
+          </button>
         </div>
 
         {/* ── MULTILINGUAL AUDIO VOICE GUIDANCE DECK (MDoNER Item 4) ── */}
@@ -1397,9 +1416,9 @@ export default function MovementAnalysis() {
               <div className="pt-2 space-y-2.5">
                 <button
                   onClick={continueToAIAnalysis}
-                  className="w-full rounded-2xl bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 py-4 px-4 font-black text-slate-950 hover:brightness-110 transition cursor-pointer shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
+                  className="w-full rounded-2xl bg-teal-700 hover:bg-teal-800 py-3.5 px-4 font-bold text-white transition cursor-pointer shadow-md flex items-center justify-center gap-2 text-sm"
                 >
-                  <span>Proceed to Step 3: Hardware Ingestion</span>
+                  <span>Proceed to Step 3: Joint Sound Check</span>
                   <span>→</span>
                 </button>
 
@@ -1410,7 +1429,7 @@ export default function MovementAnalysis() {
                   }}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900/70 py-2.5 px-4 text-xs font-bold text-slate-300 hover:bg-slate-800 transition cursor-pointer"
                 >
-                  ← Replay Demonstration Video
+                  ← Replay Video Demonstration
                 </button>
               </div>
 

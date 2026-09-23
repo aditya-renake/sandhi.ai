@@ -1,293 +1,323 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { 
-  UserCheck, 
-  ShieldCheck, 
-  Activity, 
+  HeartPulse,
   ArrowRight, 
   Video, 
   Volume2, 
-  Layers, 
-  Database, 
-  Sparkles,
-  Building2,
-  HeartHandshake,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2, 
+  ShieldCheck, 
+  PhoneCall, 
+  UserCheck, 
+  Users, 
+  Clock, 
+  Smile,
+  HelpCircle,
+  Stethoscope
 } from "lucide-react"
 import { getScreenings } from "../utils/screeningsStore"
+import { VOICE_PROMPTS, speakText, playPleasantChime } from "../utils/speech"
 
 export default function Gateway() {
   const navigate = useNavigate()
   const [totalPatients, setTotalPatients] = useState(128)
-  const [highRiskCount, setHighRiskCount] = useState(7)
+  const [selectedLang, setSelectedLang] = useState(() => localStorage.getItem("sandhi_lang") || "en")
 
   useEffect(() => {
     try {
       const records = getScreenings()
-      setTotalPatients(records.length)
-      setHighRiskCount(records.filter(r => r.scores?.riskCategory === "HIGH").length)
+      if (records && records.length) setTotalPatients(records.length)
     } catch (e) {}
   }, [])
 
+  const handleLangChange = (lang) => {
+    setSelectedLang(lang)
+    localStorage.setItem("sandhi_lang", lang)
+    window.dispatchEvent(new CustomEvent("sandhi_language_changed", { detail: lang }))
+    const prompt = VOICE_PROMPTS[lang]
+    if (prompt) {
+      playPleasantChime()
+      speakText(prompt.previewPhrase || prompt.nativeName, lang)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans selection:bg-teal-500 selection:text-white">
-      {/* Top Navigation Bar */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-6 py-4 sticky top-0 z-30">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between font-sans selection:bg-teal-100 selection:text-teal-900">
+      
+      {/* Top Banner & Accessibility Bar */}
+      <header className="border-b border-slate-200 bg-white px-4 sm:px-8 py-3.5 sticky top-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          
+          {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-teal-900/40 ring-1 ring-teal-400/30">
-              OA
+            <div className="w-11 h-11 rounded-xl bg-teal-600 flex items-center justify-center text-white shadow-sm">
+              <HeartPulse className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-lg tracking-tight text-white">Sandhi-AI</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-950 text-teal-400 border border-teal-800">
-                  v2.4 Live
+                <span className="font-extrabold text-xl tracking-tight text-slate-900">Sandhi</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">
+                  Knee Health Check
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Ministry of Development of North Eastern Region (MDoNER) &bull; Problem Statement 26004
+              <p className="text-xs text-slate-500 font-medium">
+                Free Community Knee Care & Early Arthritis Screening
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Tele-Screening Pipeline Active</span>
+          {/* Quick Language & Voice selector */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700">
+              <Volume2 size={15} className="text-teal-700" />
+              <span className="font-semibold hidden md:inline">Voice Language:</span>
+              <select
+                value={selectedLang}
+                onChange={(e) => handleLangChange(e.target.value)}
+                aria-label="Choose voice language"
+                className="bg-transparent font-bold text-teal-900 focus:outline-none cursor-pointer"
+              >
+                {Object.keys(VOICE_PROMPTS).map((langKey) => {
+                  const lang = VOICE_PROMPTS[langKey]
+                  return (
+                    <option key={langKey} value={langKey}>
+                      {lang.flag} {lang.name} ({lang.nativeName})
+                    </option>
+                  )
+                })}
+              </select>
             </div>
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-xs">
-              <Volume2 size={13} className="text-teal-400" />
-              <span>6 NER Languages</span>
-            </div>
+
+            <a
+              href="tel:18001036004"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition"
+              title="Call toll-free patient help"
+            >
+              <PhoneCall size={14} className="text-emerald-700" />
+              <span>Toll-Free: 1800-103-6004</span>
+            </a>
           </div>
+
         </div>
       </header>
 
-      {/* Main Hero and Gateway Blocks */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 md:py-14 flex flex-col justify-center">
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 md:py-12 flex flex-col justify-center">
         
-        {/* Banner Title */}
-        <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-900/30 border border-teal-500/30 text-teal-300 text-xs font-semibold mb-4">
-            <Sparkles size={14} className="text-teal-400" />
-            <span>AI-Assisted Knee Osteoarthritis Care & Triage System</span>
+        {/* Warm, Welcoming Header */}
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-100 border border-teal-200 text-teal-900 text-xs sm:text-sm font-bold mb-4 shadow-2xs">
+            <Smile size={16} className="text-teal-700" />
+            <span>Simple, Free & Safe for Seniors and Grandparents</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Select Your <span className="bg-gradient-to-r from-teal-400 via-cyan-300 to-emerald-400 bg-clip-text text-transparent">Access Portal</span>
+
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+            Check Your <span className="text-teal-700 underline decoration-teal-300 decoration-wavy decoration-2">Knee Health</span> in 3 Minutes
           </h1>
-          <p className="mt-3 text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
-            Choose whether you are taking a knee health screening test as a patient or citizen, or accessing the centralized clinical command center as a doctor or healthcare administrator.
-          </p>
-        </div>
-
-        {/* Real-time Telemetry Notification Banner */}
-        <div className="mb-8 max-w-4xl mx-auto w-full bg-gradient-to-r from-teal-950/70 via-slate-900 to-slate-950 border border-teal-800/50 rounded-2xl p-4 shadow-xl flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-900/60 border border-teal-700/50 flex items-center justify-center text-teal-300 shrink-0">
-              <Database size={18} />
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm font-semibold text-slate-200">
-                ⚡ Automatic Real-Time Telemetry Synchronization
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Every test completed in the User Portal is automatically reflected in the Doctor & Admin Command Center with full kinematic biomarkers.
-              </p>
-            </div>
-          </div>
-          <div className="hidden sm:flex flex-col text-right shrink-0">
-            <span className="text-xs text-slate-400">Registry Records</span>
-            <span className="text-sm font-bold text-teal-400">{totalPatients} Screenings Active</span>
-          </div>
-        </div>
-
-        {/* TWO PRIMARY PORTAL BLOCKS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto w-full">
           
-          {/* BLOCK 1: PATIENT / CITIZEN PORTAL */}
-          <div className="group relative rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border-2 border-slate-800 hover:border-teal-500/70 p-7 sm:p-9 shadow-2xl transition-all duration-300 hover:shadow-teal-950/40 hover:-translate-y-1 flex flex-col justify-between overflow-hidden">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-teal-500/20 transition-all duration-500"></div>
-            
+          <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+            Are your knees hurting, stiff in the morning, or making it hard to climb stairs? 
+            Take this simple check at home to understand your knee condition and receive clear, doctor-approved daily advice.
+          </p>
+
+          {/* Reassurance pills */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-700">
+            <span className="flex items-center gap-1.5 bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-2xs">
+              <CheckCircle2 size={16} className="text-teal-600" />
+              <span>No medical equipment needed</span>
+            </span>
+            <span className="flex items-center gap-1.5 bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-2xs">
+              <Users size={16} className="text-teal-600" />
+              <span>Family members can help take the test</span>
+            </span>
+            <span className="flex items-center gap-1.5 bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-2xs">
+              <Clock size={16} className="text-teal-600" />
+              <span>Takes less than 3 minutes</span>
+            </span>
+          </div>
+        </div>
+
+        {/* TWO PRIMARY DOORS: PATIENT / CITIZEN vs DOCTOR / CLINIC */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-stretch max-w-5xl mx-auto w-full">
+          
+          {/* DOOR 1: FOR CITIZENS & SENIORS (PRIMARY - 7 COLS) */}
+          <div className="md:col-span-7 rounded-3xl bg-white border-2 border-teal-600/30 hover:border-teal-600 p-6 sm:p-8 shadow-md hover:shadow-lg transition-all flex flex-col justify-between">
             <div>
-              {/* Header Badge */}
-              <div className="flex items-center justify-between mb-6">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-950 text-teal-300 border border-teal-800/80 text-xs font-bold uppercase tracking-wider">
-                  <UserCheck size={14} />
-                  Patient & Citizen Portal
+              {/* Badge */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100 text-teal-900 border border-teal-300 text-xs font-extrabold uppercase tracking-wide">
+                  <UserCheck size={15} />
+                  For Seniors & Patients
                 </span>
-                <span className="text-xs font-semibold text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700">
-                  Open Access
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  Free & Open
                 </span>
               </div>
 
-              {/* Icon & Title */}
-              <div className="w-16 h-16 rounded-2xl bg-teal-900/40 border border-teal-600/40 flex items-center justify-center text-teal-400 mb-5 group-hover:scale-105 transition-transform shadow-inner">
-                <Activity size={32} />
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl font-bold text-white group-hover:text-teal-300 transition-colors">
-                Take Knee OA Screening Test
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+                Start My Knee Health Check
               </h2>
-
-              <p className="mt-3 text-sm text-slate-300 leading-relaxed">
-                For patients, tea garden workers, mountain farmers, and citizens across the North East. Complete a guided 3-minute knee assessment.
+              
+              <p className="mt-2 text-sm sm:text-base text-slate-600 leading-relaxed">
+                Take our guided 3-step check. You can sit comfortably in your chair at home. Spoken audio instructions will guide you every step of the way.
               </p>
 
-              {/* Feature Points */}
-              <div className="mt-6 space-y-3 pt-6 border-t border-slate-800">
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-teal-400 shrink-0 mt-0.5" />
-                  <span><b>30s Chair Stand Test:</b> Real human clinical video demonstration + camera angle tracking</span>
+              {/* 3 Simple Steps preview */}
+              <div className="mt-6 space-y-3 bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-teal-700 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    1
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Answer 5 Simple Questions</h4>
+                    <p className="text-xs text-slate-500">Tell us where your knee hurts and how it affects walking or resting.</p>
+                  </div>
                 </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-teal-400 shrink-0 mt-0.5" />
-                  <span><b>Native Audio Guidance:</b> Complete voice instructions in Assamese, Bengali, Hindi, Mizo, Meitei & English</span>
+
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-teal-700 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    2
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Chair Stand Test (30 seconds)</h4>
+                    <p className="text-xs text-slate-500">A simple test sitting and standing from a steady chair with gentle guidance.</p>
+                  </div>
                 </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-teal-400 shrink-0 mt-0.5" />
-                  <span><b>Instant Health Results:</b> WOMAC disability index, ROM flexion/extension, and clinical recommendations</span>
-                </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-teal-400 shrink-0 mt-0.5" />
-                  <span><b>Auto-Sync to Doctor:</b> Test data is instantly sent to the nearest Medical Officer</span>
+
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-teal-700 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    3
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Get Your Clear Knee Advice</h4>
+                    <p className="text-xs text-slate-500">Understand your joint health in plain words, with daily exercises you can do at home.</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* CTAs */}
-            <div className="mt-8 pt-4 space-y-3">
+            {/* Action Buttons */}
+            <div className="mt-8 space-y-3">
               <button
+                type="button"
                 onClick={() => navigate("/screening")}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-base shadow-lg shadow-teal-900/30 flex items-center justify-center gap-2 group/btn cursor-pointer transition-all active:scale-[0.99]"
+                className="w-full py-4 px-6 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-base sm:text-lg shadow-md hover:shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-[0.99] cursor-pointer"
               >
-                <span>Begin Patient Screening</span>
-                <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                <span>Start Free Knee Check</span>
+                <ArrowRight size={20} />
               </button>
 
               <button
+                type="button"
                 onClick={() => navigate("/movement")}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700/80 flex items-center justify-center gap-2 transition cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer border border-slate-200"
               >
-                <Video size={14} className="text-teal-400" />
-                <span>Jump directly to 30s Movement Test</span>
+                <Video size={16} className="text-teal-700" />
+                <span>Jump directly to 30-Second Chair Stand Test</span>
               </button>
             </div>
           </div>
 
-          {/* BLOCK 2: DOCTOR & ADMIN COMMAND HUB */}
-          <div className="group relative rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border-2 border-slate-800 hover:border-cyan-500/70 p-7 sm:p-9 shadow-2xl transition-all duration-300 hover:shadow-cyan-950/40 hover:-translate-y-1 flex flex-col justify-between overflow-hidden">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/20 transition-all duration-500"></div>
-
+          {/* DOOR 2: FOR DOCTORS & CLINICS (5 COLS) */}
+          <div className="md:col-span-5 rounded-3xl bg-white border border-slate-200 hover:border-slate-300 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
             <div>
-              {/* Header Badge */}
-              <div className="flex items-center justify-between mb-6">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800/80 text-xs font-bold uppercase tracking-wider">
-                  <ShieldCheck size={14} />
-                  Doctor & MDoNER Admin Hub
-                </span>
-                <span className="text-xs font-semibold text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-800/60 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  Live Feed
+              {/* Badge */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-extrabold uppercase tracking-wide">
+                  <Stethoscope size={15} className="text-teal-700" />
+                  Medical & Clinic Staff
                 </span>
               </div>
 
-              {/* Icon & Title */}
-              <div className="w-16 h-16 rounded-2xl bg-cyan-900/40 border border-cyan-600/40 flex items-center justify-center text-cyan-400 mb-5 group-hover:scale-105 transition-transform shadow-inner">
-                <Building2 size={32} />
-              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-2">
+                Doctor & Clinic Portal
+              </h3>
 
-              <h2 className="text-2xl sm:text-3xl font-bold text-white group-hover:text-cyan-300 transition-colors">
-                Clinical Command Center
-              </h2>
-
-              <p className="mt-3 text-sm text-slate-300 leading-relaxed">
-                For Orthopedic Clinicians, Medical Officers, ASHA coordinators, and MDoNER authorities monitoring citizen screening cohorts.
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                For Orthopedic Specialists, Primary Health Center Doctors, ASHA Community Health Workers, and MDoNER coordinators.
               </p>
 
-              {/* Feature Points */}
-              <div className="mt-6 space-y-3 pt-6 border-t border-slate-800">
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-cyan-400 shrink-0 mt-0.5" />
-                  <span><b>Real-Time Patient Monitor:</b> Live feed of incoming patient tests with instant condition indicators</span>
+              <div className="mt-6 space-y-2.5 border-t border-slate-100 pt-5">
+                <div className="flex items-start gap-2 text-xs text-slate-700">
+                  <CheckCircle2 size={16} className="text-teal-600 shrink-0 mt-0.5" />
+                  <span><b>Patient Records:</b> Access submitted tests and community screening history</span>
                 </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-cyan-400 shrink-0 mt-0.5" />
-                  <span><b>Deep Clinical Biomarkers:</b> ROM angles, Varus/Valgus alignment, and VAG acoustic crepitus bursts</span>
+                <div className="flex items-start gap-2 text-xs text-slate-700">
+                  <CheckCircle2 size={16} className="text-teal-600 shrink-0 mt-0.5" />
+                  <span><b>Clinical Details:</b> Knee flexion angles, posture alignment, and joint acoustics</span>
                 </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-cyan-400 shrink-0 mt-0.5" />
-                  <span><b>Tertiary Triage Referral:</b> Fast-track referrals to GMCH Guwahati, RIMS Imphal & NEIGRIHMS Shillong</span>
-                </div>
-                <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                  <CheckCircle2 size={16} className="text-cyan-400 shrink-0 mt-0.5" />
-                  <span><b>8 NER States Heatmap:</b> Geographic surveillance across Assam, Meghalaya, Manipur, Mizoram & more</span>
+                <div className="flex items-start gap-2 text-xs text-slate-700">
+                  <CheckCircle2 size={16} className="text-teal-600 shrink-0 mt-0.5" />
+                  <span><b>Hospital Referrals:</b> Fast-track specialist appointments at tertiary medical colleges</span>
                 </div>
               </div>
             </div>
 
-            {/* CTAs */}
-            <div className="mt-8 pt-4 space-y-3">
+            <div className="mt-8 space-y-3">
               <button
+                type="button"
                 onClick={() => navigate("/dashboard")}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-base shadow-lg shadow-cyan-900/30 flex items-center justify-center gap-2 group/btn cursor-pointer transition-all active:scale-[0.99]"
+                className="w-full py-3.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <span>Enter Admin Command Hub</span>
-                <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                <span>Enter Doctor Hub</span>
+                <ArrowRight size={18} />
               </button>
 
               <button
+                type="button"
                 onClick={() => navigate("/login")}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700/80 flex items-center justify-center gap-2 transition cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <ShieldCheck size={14} className="text-cyan-400" />
-                <span>Doctor Sign In / Register (invictus / invictus@11)</span>
+                <ShieldCheck size={15} className="text-teal-700" />
+                <span>Doctor Sign In / Register</span>
               </button>
             </div>
           </div>
 
         </div>
 
-        {/* Live System Counter Indicators */}
-        <div className="mt-12 max-w-5xl mx-auto w-full grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 text-center">
-            <span className="text-2xl font-black text-teal-400">{totalPatients}</span>
-            <p className="text-[11px] text-slate-400 mt-1 font-medium">Patients Screened</p>
+        {/* Helpful Support & Reassurance Note for Elderly */}
+        <div className="mt-10 max-w-5xl mx-auto w-full bg-teal-50/70 border border-teal-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 text-center sm:text-left">
+            <div className="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center shrink-0">
+              <HelpCircle size={22} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-teal-950">
+                Are you helping a parent or grandparent?
+              </p>
+              <p className="text-xs text-teal-800 font-medium">
+                You can answer the questions on their behalf and place the phone on a table for the chair movement test.
+              </p>
+            </div>
           </div>
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 text-center">
-            <span className="text-2xl font-black text-orange-400">{highRiskCount}</span>
-            <p className="text-[11px] text-slate-400 mt-1 font-medium">High Risk Triage Cases</p>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 text-center">
-            <span className="text-2xl font-black text-cyan-400">8 / 8</span>
-            <p className="text-[11px] text-slate-400 mt-1 font-medium">NER States Monitored</p>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 text-center">
-            <span className="text-2xl font-black text-emerald-400">&lt; 3 Min</span>
-            <p className="text-[11px] text-slate-400 mt-1 font-medium">Avg Screening Duration</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/screening")}
+            className="px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shrink-0 cursor-pointer"
+          >
+            Start Check for Senior
+          </button>
         </div>
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-6 px-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>
-            Sandhi-AI &bull; AI-Powered Tele-Screening for Early Knee Osteoarthritis Detection
+      {/* Trust & Compliance Footer */}
+      <footer className="border-t border-slate-200 bg-white py-6 px-6 text-center text-xs text-slate-500">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="font-medium text-slate-600">
+            Sandhi &bull; Community Joint Health & Osteoarthritis Care Portal
           </p>
-          <div className="flex items-center gap-4 text-slate-400">
-            <span>ABHA Compliant</span>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-slate-500">
+            <span>Free & Open Access</span>
             <span>&bull;</span>
-            <span>CDC STEADI Protocol</span>
+            <span>WOMAC Clinical Standard</span>
             <span>&bull;</span>
-            <span>WOMAC Standard</span>
+            <span>CDC STEADI Mobility Guidelines</span>
           </div>
         </div>
       </footer>
+
     </div>
   )
 }

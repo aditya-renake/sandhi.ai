@@ -1,23 +1,18 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import Navbar from "../components/Navbar"
 import ScreeningStepper from "../components/ScreeningStepper"
 import { updateScreeningStep } from "../utils/supabaseClient"
 import { speakText, VOICE_PROMPTS } from "../utils/speech"
 import { 
   Activity, 
-  AlertTriangle, 
   ArrowRight, 
   CheckCircle2, 
-  Cpu, 
-  FileText, 
-  Layers, 
-  Radio, 
-  Sparkles, 
   Volume2, 
-  VolumeX,
+  ShieldAlert,
+  Info,
+  Smile,
   Stethoscope,
-  ShieldAlert
+  HeartPulse
 } from "lucide-react"
 
 export default function Analysis() {
@@ -56,7 +51,7 @@ export default function Analysis() {
   const alignmentRatio = Number(cvMovement?.alignmentRatio ?? 1.15)
   const cvConfidence = Number(cvMovement?.cv_confidence ?? 0.88)
 
-  // Compute Module 2 CV Score (0 - 100) based on Spec
+  // Compute Module 2 CV Score (0 - 100)
   const cvScore = useMemo(() => {
     const repsDeficit = Math.max(0, Math.min(1, (14.0 - sitToStandReps) / 10.0)) * 40.0
     const romDeficit = Math.max(0, Math.min(1, (115.0 - romVal) / 45.0)) * 35.0
@@ -64,7 +59,7 @@ export default function Analysis() {
     return Math.min(100, Math.round(repsDeficit + romDeficit + alignPenalty))
   }, [sitToStandReps, romVal, varusValgus])
 
-  // Module 3: Hardware Sensor State (SandhiBand VAG & IMU)
+  // Module 3: Hardware Sensor State (SandhiBand VAG & Sound)
   const initialBursts = romVal < 70 || qScore > 60 ? 6 : romVal > 105 && qScore < 30 ? 1 : 4
   const initialFreq = romVal < 70 || qScore > 60 ? 220 : romVal > 105 && qScore < 30 ? 95 : 148
 
@@ -74,7 +69,7 @@ export default function Analysis() {
   const [sensorPreset, setSensorPreset] = useState(initialBursts >= 6 ? "severe" : initialBursts <= 1 ? "smooth" : "moderate")
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
 
-  // Compute Module 3 Hardware Score (0 - 100) based on Spec
+  // Compute Module 3 Hardware Score (0 - 100)
   const hwScore = useMemo(() => {
     const burstScore = Math.min(50.0, (burstCount / 8.0) * 50.0)
     const freqScore = Math.max(0.0, Math.min(35.0, ((peakFrequency - 100.0) / 150.0) * 35.0))
@@ -82,13 +77,12 @@ export default function Analysis() {
     return Math.min(100, Math.round(burstScore + freqScore + rmsScore))
   }, [burstCount, peakFrequency, rmsEnergy])
 
-  // Module 4: Tri-Factor Fusion Engine (Exact Sandy AI Spec)
+  // Module 4: Tri-Factor Fusion Engine
   const fusionResult = useMemo(() => {
     let w_q = 0.30
     let w_cv = 0.35
     let w_hw = 0.35
 
-    // Confidence adjustment guardrail
     if (cvConfidence < 0.6) {
       const deficit = w_cv * (1.0 - cvConfidence)
       w_cv -= deficit
@@ -113,16 +107,16 @@ export default function Analysis() {
 
     const explanations = []
     if (qScore >= 50) {
-      explanations.push(`Elevated joint pain & stiffness reported in clinical questionnaire (${Math.round(qScore)}/100).`)
+      explanations.push(`Noticeable knee pain or stiffness reported during daily walking or rest (${Math.round(qScore)}/100).`)
     }
     if (cvScore >= 50) {
-      explanations.push(`Reduced knee flexion arc and functional chair-stand power captured on video (${Math.round(cvScore)}/100).`)
+      explanations.push(`Reduced chair stand repetitions and restricted knee bend recorded (${Math.round(cvScore)}/100).`)
     }
     if (hwScore >= 45) {
-      explanations.push(`Acoustic vibroarthrographic crepitus spikes detected by contact sensor (${Math.round(hwScore)}/100).`)
+      explanations.push(`Knee joint clicking or friction vibrations detected during motion (${Math.round(hwScore)}/100).`)
     }
     if (explanations.length === 0) {
-      explanations.push("All 3 clinical diagnostic streams are within normal, healthy parameters.")
+      explanations.push("Your questions, movement, and joint sounds are all in a healthy, normal range.")
     }
 
     return {
@@ -148,7 +142,7 @@ export default function Analysis() {
     return () => window.removeEventListener("sandhi_language_changed", onLangChange)
   }, [])
 
-  // SandhiBand Real-time Oscilloscope Waveform Canvas
+  // SandhiBand Waveform Canvas
   useEffect(() => {
     const canvas = waveformCanvasRef.current
     if (!canvas) return
@@ -161,10 +155,10 @@ export default function Analysis() {
       const height = canvas.height
       const midY = height / 2
 
-      ctx.fillStyle = "#090d16"
+      ctx.fillStyle = "#0f172a"
       ctx.fillRect(0, 0, width, height)
 
-      // Oscilloscope grid lines
+      // Grid lines
       ctx.strokeStyle = "#1e293b"
       ctx.lineWidth = 1
       for (let x = 0; x < width; x += 40) {
@@ -180,17 +174,16 @@ export default function Analysis() {
         ctx.stroke()
       }
 
-      // Draw VAG Baseline + Crepitus Spikes
+      // Draw Waveform
       ctx.beginPath()
       ctx.lineWidth = 2.5
-      ctx.strokeStyle = "#2dd4bf"
+      ctx.strokeStyle = "#14b8a6"
 
       phase += 0.08
       for (let x = 0; x < width; x++) {
         const normX = x / width
         let y = Math.sin(x * 0.05 + phase) * 8 + (Math.random() - 0.5) * 4
 
-        // Crepitus spikes based on burstCount
         const spikeIntervals = [0.20, 0.42, 0.65, 0.85].slice(0, Math.min(4, burstCount))
         spikeIntervals.forEach((spikeX) => {
           const dist = Math.abs(normX - spikeX)
@@ -209,418 +202,343 @@ export default function Analysis() {
       }
       ctx.stroke()
 
-      // Marker dots for crepitus bursts
-      const spikeXPositions = [width * 0.20, width * 0.42, width * 0.65, width * 0.85].slice(0, Math.min(4, burstCount))
-      spikeXPositions.forEach((sx, idx) => {
-        ctx.fillStyle = "#ef4444"
-        ctx.beginPath()
-        ctx.arc(sx, midY - 45, 5, 0, 2 * Math.PI)
-        ctx.fill()
-
-        ctx.fillStyle = "#fca5a5"
-        ctx.font = "bold 9px Inter, sans-serif"
-        ctx.fillText(`BURST #${idx + 1}`, sx - 22, midY - 55)
-      })
-
       animId = requestAnimationFrame(render)
     }
 
     render()
-    return () => { if (animId) cancelAnimationFrame(animId) }
+    return () => {
+      if (animId) cancelAnimationFrame(animId)
+    }
   }, [burstCount])
 
-  // Play auditory crepitus feedback
+  const handleApplyPreset = (preset) => {
+    setSensorPreset(preset)
+    if (preset === "smooth") {
+      setBurstCount(1)
+      setPeakFrequency(92)
+      setRmsEnergy(0.18)
+    } else if (preset === "moderate") {
+      setBurstCount(4)
+      setPeakFrequency(152)
+      setRmsEnergy(0.44)
+    } else {
+      setBurstCount(7)
+      setPeakFrequency(245)
+      setRmsEnergy(0.72)
+    }
+  }
+
+  // Audio simulation of crepitus
   const playCrepitusSound = () => {
+    if (isPlayingAudio) return
+    setIsPlayingAudio(true)
+
     try {
-      setIsPlayingAudio(true)
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-      const now = audioCtx.currentTime
-      for (let i = 0; i < Math.min(burstCount, 6); i++) {
-        const osc = audioCtx.createOscillator()
-        const gain = audioCtx.createGain()
-        osc.type = "sawtooth"
-        osc.frequency.setValueAtTime(peakFrequency + (i * 25), now + (i * 0.22))
-        gain.gain.setValueAtTime(0.08, now + (i * 0.22))
-        gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.22) + 0.12)
-        osc.connect(gain)
-        gain.connect(audioCtx.destination)
-        osc.start(now + (i * 0.22))
-        osc.stop(now + (i * 0.22) + 0.15)
+      const duration = 2.2
+      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate)
+      const data = buffer.getChannelData(0)
+
+      for (let i = 0; i < buffer.length; i++) {
+        const t = i / audioCtx.sampleRate
+        let sample = (Math.random() * 2 - 1) * 0.06
+
+        const bursts = [0.4, 0.9, 1.4, 1.8].slice(0, burstCount)
+        bursts.forEach(bTime => {
+          if (Math.abs(t - bTime) < 0.06) {
+            sample += (Math.random() * 2 - 1) * 0.65 * (1 - Math.abs(t - bTime) / 0.06)
+          }
+        })
+        data[i] = sample
       }
-      setTimeout(() => setIsPlayingAudio(false), burstCount * 220 + 200)
-    } catch {
+
+      const source = audioCtx.createBufferSource()
+      source.buffer = buffer
+
+      const filter = audioCtx.createBiquadFilter()
+      filter.type = "bandpass"
+      filter.frequency.value = peakFrequency
+      filter.Q.value = 3.0
+
+      source.connect(filter)
+      filter.connect(audioCtx.destination)
+      source.start()
+
+      source.onended = () => {
+        setIsPlayingAudio(false)
+        audioCtx.close()
+      }
+    } catch (e) {
       setIsPlayingAudio(false)
     }
   }
 
-  const handleApplyPreset = (preset) => {
-    setSensorPreset(preset)
-    if (preset === "severe") {
-      setBurstCount(7)
-      setPeakFrequency(245)
-      setRmsEnergy(0.68)
-    } else if (preset === "moderate") {
-      setBurstCount(4)
-      setPeakFrequency(148)
-      setRmsEnergy(0.38)
-    } else {
-      setBurstCount(1)
-      setPeakFrequency(88)
-      setRmsEnergy(0.15)
-    }
-  }
-
   const handleProceedToResults = () => {
-    const fusedPayload = {
-      patient,
+    const vagData = {
+      burstCount,
+      peakFrequency,
+      rmsEnergy,
+      hwScore,
+      preset: sensorPreset
+    }
+
+    const triFactorData = {
+      questionnaireScore: qScore,
+      movementScore: cvScore,
+      hardwareScore: hwScore,
+      weights: fusionResult.weights,
       compositeScore: fusionResult.finalScore,
       riskCategory: fusionResult.riskCategory,
       klProxy: fusionResult.klGrade,
-      womacScore: qScore,
-      movementResults: {
-        ...cvMovement,
-        sitToStandReps,
-        rom: romVal,
-        varusValgusAlignment: varusValgus,
-        alignmentRatio
-      },
-      vagData: {
-        burstCount,
-        peakFrequency,
-        rmsEnergy,
-        crepitusDetected: burstCount >= 3
-      },
-      triFactorBreakdown: {
-        questionnaire_score: qScore,
-        cv_score: cvScore,
-        hardware_score: hwScore,
-        weights: fusionResult.weights,
-        explanations: fusionResult.explanations
-      }
+      explanations: fusionResult.explanations
     }
 
-    updateScreeningStep(3, { bursts: burstCount, peakFreq: peakFrequencyHz, rms: rmsVibrationEnergy }, Math.round(hwScore))
-    localStorage.setItem("sandhi_fused_result", JSON.stringify(fusedPayload))
-    navigate("/results", { state: fusedPayload })
+    updateScreeningStep(3, vagData, hwScore)
+    localStorage.setItem("sandhi_vag", JSON.stringify(vagData))
+    localStorage.setItem("sandhi_trifactor", JSON.stringify(triFactorData))
+
+    navigate("/results", {
+      state: {
+        patient,
+        womacScore: qScore,
+        movementResults: cvMovement,
+        vagData,
+        triFactorBreakdown: triFactorData,
+        compositeScore: fusionResult.finalScore,
+        riskCategory: fusionResult.riskCategory,
+        klProxy: fusionResult.klGrade
+      }
+    })
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-slate-100 selection:bg-teal-500 selection:text-white pb-16">
-      <Navbar />
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-teal-100 selection:text-teal-900 pb-20">
+      
+      {/* Stepper with Step 3 */}
       <ScreeningStepper currentStep={3} />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
-        
-        {/* Header */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* Header bar */}
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 shadow-2xs">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-teal-950 text-teal-400 border border-teal-800">
-                Module 3 &amp; 4: Hardware &amp; Fusion
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">
+                Step 3 of 4
               </span>
-              <span className="text-xs font-bold text-slate-400">
-                Patient: {patient.name} ({patient.gender}, {patient.age}y)
-              </span>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                Knee Sound & Joint Vibration Check
+              </h1>
             </div>
-            <h1 className="mt-1 text-2xl md:text-3xl font-black text-white">
-              Tri-Factor Multimodal Fusion Engine
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Synthesizing Questionnaire (30%) + CV Kinematics (35%) + Hardware Vibroarthrography (35%)
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Checks for clicking or friction sounds (crepitus) inside the knee joint as you bend and stand.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className={`px-3.5 py-1.5 rounded-full text-xs font-black tracking-wider uppercase border ${
-              fusionResult.riskCategory === "HIGH" ? "bg-red-950 text-red-400 border-red-800" :
-              fusionResult.riskCategory === "MODERATE" ? "bg-amber-950 text-amber-400 border-amber-800" :
-              "bg-emerald-950 text-emerald-400 border-emerald-800"
-            }`}>
-              {fusionResult.riskCategory} RISK &bull; Score: {fusionResult.finalScore}/100
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={handleProceedToResults}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <span>View Final Results & Advice</span>
+            <ArrowRight size={16} />
+          </button>
         </div>
+      </div>
 
-        {/* ── 3-PILLAR MULTI-MODAL ARCHITECTURE CARDS ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+      {/* Main Content */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        
+        {/* 3 Pillar Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* PILLAR 1: QUESTIONNAIRE WOMAC */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+          {/* Card 1: Questionnaire */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-950 text-teal-400 border border-teal-800 uppercase">
-                  Modality 1: Questionnaire
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-900 border border-teal-200 uppercase">
+                  Step 1: Questions
                 </span>
-                <span className="text-xs font-mono font-bold text-slate-400">Weight: 30%</span>
+                <span className="text-xs font-bold text-slate-500">Weight: 30%</span>
               </div>
-
-              <div className="flex items-baseline justify-between mb-2">
-                <h3 className="text-sm font-bold text-white">WOMAC Symptom Index</h3>
-                <span className="text-2xl font-black text-teal-400 font-mono">{qScore}/100</span>
-              </div>
-
-              {/* Progress */}
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden mb-3">
-                <div 
-                  className={`h-full rounded-full ${qScore > 60 ? "bg-red-500" : qScore > 35 ? "bg-amber-500" : "bg-emerald-500"}`}
-                  style={{ width: `${qScore}%` }}
-                />
-              </div>
-
-              <div className="space-y-1.5 text-xs text-slate-300">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Pain Subscale:</span>
-                  <span className="font-bold text-white">{womacBreakdown.pain} / 20.0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Stiffness Subscale:</span>
-                  <span className="font-bold text-white">{womacBreakdown.stiffness} / 8.0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Physical Function:</span>
-                  <span className="font-bold text-white">{womacBreakdown.function} / 68.0</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-slate-800 text-[11px]">
-                  <span className="text-slate-400">BMI / Occupation:</span>
-                  <span className="font-mono text-teal-300">{riskFactors.bmi} kg/m² &bull; {riskFactors.occupation_flag ? "Manual" : "Sedentary"}</span>
-                </div>
+              <h3 className="text-base font-bold text-slate-900">Knee Pain & Habits</h3>
+              <p className="text-2xl font-black text-teal-700 mt-1">{Math.round(qScore)}/100</p>
+              
+              <div className="mt-3 space-y-1 text-xs text-slate-600">
+                <p>Pain score: <b>{womacBreakdown.pain || 10}/20</b></p>
+                <p>Stiffness score: <b>{womacBreakdown.stiffness || 4}/8</b></p>
+                <p>Activity limits: <b>{womacBreakdown.function || 28}/68</b></p>
               </div>
             </div>
-
-            <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-slate-800">
-              {qScore > 50 ? "Elevated morning stiffness & weight-bearing pain" : "Normal joint comfort"}
+            <p className="text-[11px] text-slate-500 mt-4 pt-2 border-t border-slate-100">
+              {qScore > 50 ? "Noticeable knee pain reported" : "Mild knee discomfort"}
             </p>
           </div>
 
-          {/* PILLAR 2: COMPUTER VISION KINEMATICS */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+          {/* Card 2: Movement */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase">
-                  Modality 2: Computer Vision
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-900 border border-teal-200 uppercase">
+                  Step 2: Movement
                 </span>
-                <span className="text-xs font-mono font-bold text-slate-400">Weight: 35%</span>
+                <span className="text-xs font-bold text-slate-500">Weight: 35%</span>
               </div>
+              <h3 className="text-base font-bold text-slate-900">Chair Stand Test</h3>
+              <p className="text-2xl font-black text-teal-700 mt-1">{cvScore}/100</p>
 
-              <div className="flex items-baseline justify-between mb-2">
-                <h3 className="text-sm font-bold text-white">Video Kinematics Score</h3>
-                <span className="text-2xl font-black text-cyan-400 font-mono">{cvScore}/100</span>
-              </div>
-
-              {/* Progress */}
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden mb-3">
-                <div 
-                  className={`h-full rounded-full ${cvScore > 60 ? "bg-red-500" : cvScore > 35 ? "bg-amber-500" : "bg-emerald-500"}`}
-                  style={{ width: `${cvScore}%` }}
-                />
-              </div>
-
-              <div className="space-y-1.5 text-xs text-slate-300">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">30s Chair Stand:</span>
-                  <span className="font-bold text-white">{sitToStandReps} reps (Norm: 14)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Knee ROM:</span>
-                  <span className="font-bold text-white">{romVal}° (Norm: &gt;115°)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Coronal Alignment:</span>
-                  <span className="font-bold text-cyan-300">{varusValgus} ({alignmentRatio})</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-slate-800 text-[11px]">
-                  <span className="text-slate-400">CV Confidence:</span>
-                  <span className="font-mono text-emerald-400">{Math.round(cvConfidence * 100)}% Landmark Tracking</span>
-                </div>
+              <div className="mt-3 space-y-1 text-xs text-slate-600">
+                <p>Reps completed: <b>{sitToStandReps} reps</b></p>
+                <p>Knee bend range: <b>{romVal}°</b></p>
+                <p>Leg alignment: <b>{varusValgus}</b></p>
               </div>
             </div>
-
-            <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-slate-800">
-              {sitToStandReps < 8 ? "Severely reduced quadriceps functional power" : "Stable sit-to-stand kinematics"}
+            <p className="text-[11px] text-slate-500 mt-4 pt-2 border-t border-slate-100">
+              {sitToStandReps >= 8 ? "Good chair-stand strength" : "Reduced leg endurance"}
             </p>
           </div>
 
-          {/* PILLAR 3: HARDWARE ACOUSTIC SENSOR */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+          {/* Card 3: Joint Sound Check */}
+          <div className="p-5 rounded-2xl bg-white border-2 border-teal-600 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-400 border border-amber-800 uppercase">
-                  Modality 3: Hardware Sensor
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-700 text-white uppercase">
+                  Step 3: Joint Sound
                 </span>
-                <span className="text-xs font-mono font-bold text-slate-400">Weight: 35%</span>
+                <span className="text-xs font-bold text-slate-500">Weight: 35%</span>
               </div>
+              <h3 className="text-base font-bold text-slate-900">Joint Sound & Vibration</h3>
+              <p className="text-2xl font-black text-teal-800 mt-1">{hwScore}/100</p>
 
-              <div className="flex items-baseline justify-between mb-2">
-                <h3 className="text-sm font-bold text-white">SandhiBand VAG Crepitus</h3>
-                <span className="text-2xl font-black text-amber-400 font-mono">{hwScore}/100</span>
-              </div>
-
-              {/* Progress */}
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden mb-3">
-                <div 
-                  className={`h-full rounded-full ${hwScore > 60 ? "bg-red-500" : hwScore > 35 ? "bg-amber-500" : "bg-emerald-500"}`}
-                  style={{ width: `${hwScore}%` }}
-                />
-              </div>
-
-              <div className="space-y-1.5 text-xs text-slate-300">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Crepitus Bursts:</span>
-                  <span className="font-bold text-white">{burstCount} bursts / cycle</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Dominant Frequency:</span>
-                  <span className="font-bold text-white">{peakFrequency} Hz (Friction band)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">RMS Vibration:</span>
-                  <span className="font-bold text-amber-300">{rmsEnergy} mV</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-slate-800 text-[11px]">
-                  <span className="text-slate-400">Crepitus State:</span>
-                  <span className="font-mono text-amber-400">{burstCount >= 6 ? "Severe Wear" : burstCount >= 3 ? "Moderate" : "Smooth Flow"}</span>
-                </div>
+              <div className="mt-3 space-y-1 text-xs text-slate-600">
+                <p>Click / crunch sounds: <b>{burstCount} sounds</b></p>
+                <p>Friction pitch: <b>{peakFrequency} Hz</b></p>
+                <p>Joint state: <b className="text-teal-900">{burstCount >= 6 ? "Noticeable Friction" : burstCount >= 3 ? "Occasional Clicking" : "Smooth Movement"}</b></p>
               </div>
             </div>
-
-            <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-slate-800">
-              {burstCount >= 3 ? "Subchondral bone / cartilage friction detected" : "Laminar synovial fluid articulation"}
+            <p className="text-[11px] text-slate-500 mt-4 pt-2 border-t border-slate-100">
+              {burstCount >= 3 ? "Joint cartilage friction detected" : "Smooth joint motion"}
             </p>
           </div>
 
         </div>
 
-        {/* ── SANDHIBAND HARDWARE OSCILLOSCOPE WAVEFORM SIMULATOR ── */}
-        <div className="mb-6 rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-900/40 text-teal-400 border border-teal-700/50 flex items-center justify-center font-bold">
-                ⚡
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">
-                  SandhiBand™ Vibroarthrographic Acoustic Waveform
-                </h3>
-                <p className="text-xs text-slate-400">
-                  ESP32-S3 + Piezoelectric Transducer &bull; Bandpass Filter: 100 Hz – 1,000 Hz
-                </p>
-              </div>
+        {/* Waveform & Sound Test Box */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Knee Vibration & Sound Reader
+              </h3>
+              <p className="text-xs text-slate-500">
+                Select your knee sound type below or click Play Sound to listen.
+              </p>
             </div>
 
-            {/* Presets & Audio Playback */}
+            {/* Presets */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => handleApplyPreset("smooth")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  sensorPreset === "smooth" ? "bg-emerald-600 text-white shadow-xs" : "bg-slate-800 text-slate-400 hover:text-white"
+                  sensorPreset === "smooth" ? "bg-emerald-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                🟢 Smooth Synovial (KL 0-1)
+                🟢 Smooth Knee (Low Sound)
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyPreset("moderate")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  sensorPreset === "moderate" ? "bg-amber-600 text-white shadow-xs" : "bg-slate-800 text-slate-400 hover:text-white"
+                  sensorPreset === "moderate" ? "bg-amber-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                🟡 Moderate Crepitus (KL 2)
+                🟡 Occasional Click
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyPreset("severe")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  sensorPreset === "severe" ? "bg-red-600 text-white shadow-xs" : "bg-slate-800 text-slate-400 hover:text-white"
+                  sensorPreset === "severe" ? "bg-rose-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                🔴 Severe Chondral Wear (KL 3-4)
+                🔴 Frequent Grating
               </button>
 
               <button
                 type="button"
                 onClick={playCrepitusSound}
                 disabled={isPlayingAudio}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-800/60 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-xl bg-teal-50 border border-teal-300 text-teal-900 text-xs font-bold hover:bg-teal-100 transition cursor-pointer flex items-center gap-1.5"
               >
-                <span>{isPlayingAudio ? "🔊" : "▶"}</span>
-                <span>{isPlayingAudio ? "Playing VAG..." : "Audio Playback"}</span>
+                <Volume2 size={14} className="text-teal-700" />
+                <span>{isPlayingAudio ? "Playing Sound..." : "Listen to Knee Sound"}</span>
               </button>
             </div>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-inner">
+          {/* Oscilloscope Canvas in sleek dark container */}
+          <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-900 shadow-inner">
             <canvas
               ref={waveformCanvasRef}
               width={720}
-              height={200}
-              className="w-full h-48 object-cover block"
+              height={180}
+              className="w-full h-40 object-cover block"
             />
-            <div className="absolute bottom-2 left-4 text-[10px] font-mono text-slate-400 flex gap-4">
-              <span>Sampling: 4,000 Hz</span>
-              <span>FFT Peak: <b className="text-teal-400">{peakFrequency} Hz</b></span>
-              <span>Acoustic Bursts: <b className="text-red-400">{burstCount} detected</b></span>
+            <div className="absolute bottom-2 left-4 text-[11px] text-slate-400 flex gap-4 font-medium">
+              <span>Joint sound vibrations: <b className="text-teal-300">{burstCount} clicks detected</b></span>
+              <span>Sound frequency: <b className="text-teal-300">{peakFrequency} Hz</b></span>
             </div>
           </div>
         </div>
 
-        {/* ── FUSION ENGINE SYNTHESIS & EXPLAINABLE REASONING ── */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl">
-          
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800">
+        {/* Explainable Summary Box */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
             <div>
-              <span className="text-xs font-bold text-teal-400 uppercase tracking-wider">
-                Module 4: Rule-Based Fusion Output
+              <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">
+                Summary of All 3 Tests
               </span>
-              <h2 className="text-2xl font-black text-white mt-1">
-                Final Composite OA Score: {fusionResult.finalScore} / 100
+              <h2 className="text-2xl font-black text-slate-900 mt-1">
+                Estimated Knee Health Score: {fusionResult.finalScore} / 100
               </h2>
-              <p className="text-xs font-mono text-slate-400 mt-1">
-                Equation: Final = ({fusionResult.weights.w_q} × {qScore}) + ({fusionResult.weights.w_cv} × {cvScore}) + ({fusionResult.weights.w_hw} × {hwScore})
+              <p className="text-xs text-slate-500 mt-0.5">
+                Combines your answers (30%), movement speed (35%), and joint sounds (35%).
               </p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <span className="text-[11px] text-slate-400 font-bold block">Kellgren-Lawrence Proxy</span>
-                <span className="text-lg font-black text-teal-400 font-mono">Grade {fusionResult.klGrade}</span>
-              </div>
-              <button
-                onClick={handleProceedToResults}
-                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-sm shadow-lg shadow-teal-900/40 flex items-center gap-2 cursor-pointer transition active:scale-[0.99]"
-              >
-                <span>Generate Final Clinical Report</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
+            <button
+              onClick={handleProceedToResults}
+              className="py-3.5 px-6 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <span>View Your Detailed Care Plan ➔</span>
+            </button>
           </div>
 
-          {/* Explainable Sub-Score Reasons */}
-          <div className="mt-6">
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-              Explainable Clinical Indicators (Why this score was assigned):
+          <div>
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Why this score was given:
             </h4>
-            <ul className="space-y-1.5">
+            <ul className="space-y-2">
               {fusionResult.explanations.map((exp, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
-                  <CheckCircle2 size={14} className="text-teal-400 shrink-0 mt-0.5" />
+                <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700">
+                  <CheckCircle2 size={16} className="text-teal-600 shrink-0 mt-0.5" />
                   <span>{exp}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* NON-NEGOTIABLE GUARDRAIL: MEDICAL DISCLAIMER */}
-          <div className="mt-6 p-4 rounded-2xl bg-amber-950/40 border border-amber-800/60 flex items-start gap-3">
-            <ShieldAlert size={20} className="text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-200 leading-relaxed">
-              <b>Mandatory Clinical Guardrail:</b> Sandy AI is an AI-assisted multi-modal screening tool for early osteoarthritis risk stratification, not a definitive medical diagnosis. If risk is moderate or high, consult an Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
+          {/* Doctor Advisory note */}
+          <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 flex items-start gap-3">
+            <Info size={18} className="text-teal-700 shrink-0 mt-0.5" />
+            <p className="text-xs text-teal-950 leading-relaxed font-medium">
+              <b>Friendly reminder:</b> Sandhi is a home screening checkup to help you and your family take care of your knee health early. If you have severe swelling or pain, please visit your local doctor or Primary Health Center for an in-person knee examination.
             </p>
           </div>
-
         </div>
 
       </main>
+
     </div>
   )
 }
