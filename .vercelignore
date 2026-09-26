@@ -1,0 +1,21 @@
+# Dev & Model Training Scripts
+download_kaggle_dataset.py
+train_xray_model.py
+requirements-ml.txt
+
+# Python cache & artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local env
+.env
+.env.local
+
+# Git
+.git
+.github
