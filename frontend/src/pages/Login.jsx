@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { 
   Phone, 
   User, 
@@ -16,9 +16,12 @@ import { registerPatient, loginPatient } from "../utils/supabaseClient"
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   
   // Main Portal Selector: "patient" | "admin"
-  const [portalMode, setPortalMode] = useState("patient")
+  const [portalMode, setPortalMode] = useState(() => 
+    searchParams.get("portal") === "admin" || searchParams.get("role") === "doctor" ? "admin" : "patient"
+  )
 
   // Patient Sub-mode: "signin" | "signup"
   const [patientTab, setPatientTab] = useState("signin")

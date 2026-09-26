@@ -44,6 +44,20 @@ export default function Navbar({ onPortalChange }) {
   const handlePortalSwitch = (mode) => {
     setPortalMode(mode)
     localStorage.setItem("sandhi_portal_mode", mode)
+    if (mode === "doctor") {
+      const defaultDoctor = {
+        username: "invictus",
+        full_name: "Dr. Invictus Barman",
+        role: "doctor",
+        specialty: "Senior Orthopedic Consultant",
+        phc: "Guwahati Central Health Center",
+        state: "Assam",
+        phone: "+91 98640 11000",
+        center: "GMCH Guwahati"
+      }
+      localStorage.setItem("sandhi_user", JSON.stringify(defaultDoctor))
+      localStorage.setItem("sandhi_token", "demo-doctor-jwt-token-invictus")
+    }
     if (onPortalChange) {
       onPortalChange(mode)
     }

@@ -4,16 +4,16 @@ import { useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import ScreeningStepper from "../components/ScreeningStepper"
 import { updateScreeningStep } from "../utils/supabaseClient"
-import { 
-  HeartPulse, 
-  CheckCircle2, 
-  Printer, 
-  PhoneCall, 
-  ArrowRight, 
-  Building2, 
-  Activity, 
-  Clock, 
-  Smile, 
+import {
+  HeartPulse,
+  CheckCircle2,
+  Printer,
+  PhoneCall,
+  ArrowRight,
+  Building2,
+  Activity,
+  Clock,
+  Smile,
   HelpCircle,
   AlertTriangle,
   RotateCcw,
@@ -25,13 +25,13 @@ export default function Results() {
   const location = useLocation()
 
   const stateData = location.state || {}
-  
+
   // Read dynamic patient data
   const storedPatient = localStorage.getItem("sandhi_patient")
   let parsedPatient = null
   try {
     parsedPatient = storedPatient ? JSON.parse(storedPatient) : null
-  } catch (e) {}
+  } catch (e) { }
 
   const patient = stateData.patient || parsedPatient || {
     name: "Bimla Karmakar",
@@ -104,16 +104,17 @@ export default function Results() {
         rom,
         flexionAngle: movement.flexionAngle || (180 - rom),
         extensionAngle: movement.extensionAngle || 160,
+
         alignmentRatio,
         varusValgus,
         burstCount,
         peakFrequency
       },
-      clinicalAction: riskCategory === "HIGH" 
+      clinicalAction: riskCategory === "HIGH"
         ? "GMCH Guwahati Tertiary Orthopedic Referral"
         : riskCategory === "MODERATE"
-        ? "PHC Physiotherapy & Quadriceps Strengthening"
-        : "Preventive Joint Health & Lifestyle Counseling",
+          ? "PHC Physiotherapy & Quadriceps Strengthening"
+          : "Preventive Joint Health & Lifestyle Counseling",
       status: "New (Auto-Synced)",
       notes: "Auto-synced from citizen screening. Chair Stand: " + reps + " reps, Knee ROM: " + rom + " deg. Acoustic bursts: " + burstCount + "."
     }
@@ -122,7 +123,7 @@ export default function Results() {
     screeningIdRef.current = newRecord.id
     try {
       updateScreeningStep(4, { compositeScore, riskCategory, klProxy }, compositeScore)
-    } catch (e) {}
+    } catch (e) { }
     setSynced(true)
   }, [compositeScore, riskCategory, klProxy, womacScore, reps, rom, alignmentRatio, varusValgus, burstCount, peakFrequency, patient])
 
@@ -143,7 +144,7 @@ export default function Results() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-teal-100 selection:text-teal-900 pb-20">
-      
+
       {/* Top Navbar */}
       <Navbar />
 
@@ -151,7 +152,7 @@ export default function Results() {
       <ScreeningStepper currentStep={4} />
 
       <main className="mx-auto max-w-4xl p-4 sm:p-6 md:p-8 space-y-6">
-        
+
         {/* Patient Bar & Print Button */}
         <div className="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -179,13 +180,12 @@ export default function Results() {
         </div>
 
         {/* Big Reassuring Status Card */}
-        <div className={`rounded-3xl p-6 sm:p-8 text-center border-2 shadow-xs ${
-          isLow 
-            ? "bg-emerald-50/70 border-emerald-300 text-emerald-950" 
-            : isModerate 
-            ? "bg-amber-50/80 border-amber-300 text-amber-950" 
+        <div className={`rounded-3xl p-6 sm:p-8 text-center border-2 shadow-xs ${isLow
+          ? "bg-emerald-50/70 border-emerald-300 text-emerald-950"
+          : isModerate
+            ? "bg-amber-50/80 border-amber-300 text-amber-950"
             : "bg-rose-50/80 border-rose-300 text-rose-950"
-        }`}>
+          }`}>
           <div className="flex justify-center mb-3">
             <span className="text-4xl">
               {isLow ? "🟢" : isModerate ? "🟡" : "🔴"}
@@ -193,19 +193,19 @@ export default function Results() {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black">
-            {isLow 
+            {isLow
               ? "Good News: Your Knees are in Healthy Shape!"
               : isModerate
-              ? "Mild to Moderate Knee Joint Wear"
-              : "Doctor Checkup Recommended for Your Knee"}
+                ? "Mild to Moderate Knee Joint Wear"
+                : "Doctor Checkup Recommended for Your Knee"}
           </h2>
 
           <p className="mt-2 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-            {isLow 
+            {isLow
               ? "Your movement speed, bending range, and joint sounds show good joint mobility with little or no cartilage wear. Keep active with gentle daily walks!"
               : isModerate
-              ? "You have some noticeable knee stiffness or discomfort during daily activities. Simple daily home exercises and leg strengthening will help protect your joints."
-              : "Your test results indicate significant knee pain, restricted movement, or joint friction. We recommend consulting a doctor or visiting your local health center for an in-person knee exam."}
+                ? "You have some noticeable knee stiffness or discomfort during daily activities. Simple daily home exercises and leg strengthening will help protect your joints."
+                : "Your test results indicate significant knee pain, restricted movement, or joint friction. We recommend consulting a doctor or visiting your local health center for an in-person knee exam."}
           </p>
 
           <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-3 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-2xs text-xs sm:text-sm font-bold text-slate-800">
@@ -303,7 +303,7 @@ export default function Results() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            
+
             {/* Habit 1 */}
             <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 flex items-start gap-3.5">
               <span className="text-2xl">🪑</span>
@@ -380,14 +380,12 @@ export default function Results() {
 
         {/* Clinic Referral Action Panel (Moderate & High Risk) */}
         {riskCategory !== "LOW" && (
-          <div className={`rounded-3xl p-6 border-2 shadow-xs ${
-            riskCategory === "HIGH" ? "bg-rose-50/70 border-rose-300" : "bg-amber-50/70 border-amber-300"
-          }`}>
+          <div className={`rounded-3xl p-6 border-2 shadow-xs ${riskCategory === "HIGH" ? "bg-rose-50/70 border-rose-300" : "bg-amber-50/70 border-amber-300"
+            }`}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                  riskCategory === "HIGH" ? "bg-rose-100 text-rose-800 border-rose-200" : "bg-amber-100 text-amber-800 border-amber-200"
-                }`}>
+                <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${riskCategory === "HIGH" ? "bg-rose-100 text-rose-800 border-rose-200" : "bg-amber-100 text-amber-800 border-amber-200"
+                  }`}>
                   {riskCategory === "HIGH" ? "Priority Hospital Referral" : "Clinical Assessment Recommended"}
                 </span>
                 <h3 className="text-lg font-black text-slate-900 mt-1">
@@ -409,16 +407,15 @@ export default function Results() {
               <button
                 onClick={() => {
                   setReferralConfirmed(true)
-                  try { localStorage.setItem(`sandhi_referred_${patient.abhaId}`, "true") } catch {}
+                  try { localStorage.setItem(`sandhi_referred_${patient.abhaId}`, "true") } catch { }
                   if (screeningIdRef.current) {
                     updateScreeningStatus(screeningIdRef.current, riskCategory === "HIGH" ? "Referred to Tertiary Centre" : "Referred to Civil Hospital", null)
                   }
                 }}
-                className={`px-5 py-3 rounded-xl text-xs font-bold transition cursor-pointer shadow-xs ${
-                  riskCategory === "HIGH" 
-                    ? "bg-rose-700 hover:bg-rose-800 text-white" 
-                    : "bg-amber-600 hover:bg-amber-700 text-white"
-                }`}
+                className={`px-5 py-3 rounded-xl text-xs font-bold transition cursor-pointer shadow-xs ${riskCategory === "HIGH"
+                  ? "bg-rose-700 hover:bg-rose-800 text-white"
+                  : "bg-amber-600 hover:bg-amber-700 text-white"
+                  }`}
               >
                 ✅ Confirm Referral &amp; Notify Doctor Hub
               </button>
@@ -439,8 +436,8 @@ export default function Results() {
                 {riskCategory === "HIGH"
                   ? "Your doctor will schedule a clinical review after assessing your referral."
                   : riskCategory === "MODERATE"
-                  ? "A 90-day re-assessment is recommended to track your knee stability."
-                  : "An annual re-assessment is recommended to confirm your knee joint health remains steady."}
+                    ? "A 90-day re-assessment is recommended to track your knee stability."
+                    : "An annual re-assessment is recommended to confirm your knee joint health remains steady."}
               </p>
             </div>
             <div className="shrink-0 text-left sm:text-right">
@@ -484,20 +481,33 @@ export default function Results() {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-slate-200">
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button 
-              onClick={() => navigate("/screening")} 
+            <button
+              onClick={() => navigate("/screening")}
               className="rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
             >
               ← Back to Knee Hub
             </button>
-            {isDoctor && (
-              <button 
-                onClick={() => navigate("/dashboard")} 
-                className="rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-xs font-bold text-teal-900 hover:bg-teal-100 transition cursor-pointer shadow-2xs"
-              >
-                Open Doctor Hub →
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const defaultDoctor = {
+                  username: "invictus",
+                  full_name: "Dr. Invictus Barman",
+                  role: "doctor",
+                  specialty: "Senior Orthopedic Consultant",
+                  phc: "Guwahati Central Health Center",
+                  state: "Assam",
+                  phone: "+91 98640 11000",
+                  center: "GMCH Guwahati"
+                }
+                localStorage.setItem("sandhi_user", JSON.stringify(defaultDoctor))
+                localStorage.setItem("sandhi_token", "demo-doctor-jwt-token-invictus")
+                localStorage.setItem("sandhi_portal_mode", "doctor")
+                navigate("/dashboard")
+              }}
+              className="rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-xs font-bold text-teal-900 hover:bg-teal-100 transition cursor-pointer shadow-2xs"
+            >
+              Open Doctor Hub →
+            </button>
           </div>
 
           <div className="flex gap-2 w-full sm:w-auto">

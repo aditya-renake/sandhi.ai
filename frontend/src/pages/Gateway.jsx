@@ -256,7 +256,22 @@ export default function Gateway() {
             <div className="mt-8 space-y-3">
               <button
                 type="button"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => {
+                  const defaultDoctor = {
+                    username: "invictus",
+                    full_name: "Dr. Invictus Barman",
+                    role: "doctor",
+                    specialty: "Senior Orthopedic Consultant",
+                    phc: "Guwahati Central Health Center",
+                    state: "Assam",
+                    phone: "+91 98640 11000",
+                    center: "GMCH Guwahati"
+                  }
+                  localStorage.setItem("sandhi_user", JSON.stringify(defaultDoctor))
+                  localStorage.setItem("sandhi_token", "demo-doctor-jwt-token-invictus")
+                  localStorage.setItem("sandhi_portal_mode", "doctor")
+                  navigate("/dashboard")
+                }}
                 className="w-full py-3.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <span>Enter Doctor Hub</span>
@@ -265,7 +280,7 @@ export default function Gateway() {
 
               <button
                 type="button"
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/login?portal=admin")}
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <ShieldCheck size={15} className="text-teal-700" />
