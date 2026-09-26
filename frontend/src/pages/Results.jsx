@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { addScreening } from "../utils/screeningsStore"
+import { addScreening, updateScreeningStatus } from "../utils/screeningsStore"
 import { useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import ScreeningStepper from "../components/ScreeningStepper"
@@ -15,7 +15,9 @@ import {
   Clock, 
   Smile, 
   HelpCircle,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw,
+  ShieldAlert
 } from "lucide-react"
 
 export default function Results() {
@@ -48,18 +50,32 @@ export default function Results() {
   const womacScore = stateData.womacScore ?? 42
 
   const movement = stateData.movementResults || {}
-  const reps = movement.sitToStandReps ?? 8
+  const reps = movement.sitToStandReps ?? movement.reps ?? 8
   const rom = movement.rom ?? 86
   const varusValgus = movement.varusValgusAlignment || (movement.alignmentRatio > 1.3 ? "Varus" : movement.alignmentRatio < 0.8 ? "Valgus" : "Normal")
   const alignmentRatio = movement.alignmentRatio || 1.15
 
   const vag = stateData.vagData || {}
-  const burstCount = vag.burstCount ?? (compositeScore >= 65 ? 7 : compositeScore >= 35 ? 4 : 1)
+  const burstCount = vag.burstCount ?? vag.bursts ?? (compositeScore >= 65 ? 7 : compositeScore >= 35 ? 4 : 1)
   const peakFrequency = vag.peakFrequency ?? (compositeScore >= 65 ? 245 : compositeScore >= 35 ? 142 : 85)
   const triFactor = stateData.triFactorBreakdown || {}
 
   const hasSyncedRef = useRef(false)
   const [synced, setSynced] = useState(false)
+  const screeningIdRef = useRef(null) // tracks the ID of the record added to the store
+
+  // Referral / care-plan follow-up state
+  const [referralConfirmed, setReferralConfirmed] = useState(() => {
+    try { return localStorage.getItem(`sandhi_referred_${patient.abhaId}`) === "true" } catch { return false }
+  })
+
+  // Role check: only doctors can access /dashboard
+  const isDoctor = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("sandhi_user") || "null")
+      return u?.role === "doctor"
+    } catch { return false }
+  })()
 
   useEffect(() => {
     if (hasSyncedRef.current) return
@@ -103,7 +119,10 @@ export default function Results() {
     }
 
     addScreening(newRecord)
-    updateScreeningStep(4, { compositeScore, riskCategory, klProxy }, compositeScore)
+    screeningIdRef.current = newRecord.id
+    try {
+      updateScreeningStep(4, { compositeScore, riskCategory, klProxy }, compositeScore)
+    } catch (e) {}
     setSynced(true)
   }, [compositeScore, riskCategory, klProxy, womacScore, reps, rom, alignmentRatio, varusValgus, burstCount, peakFrequency, patient])
 
@@ -137,7 +156,7 @@ export default function Results() {
         <div className="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <span className="text-xs font-bold text-teal-800 bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-200">
-              Knee Health Summary & Report
+              Knee Health Summary &amp; Report
             </span>
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
               Report for {patient.name || "Patient"}
@@ -147,14 +166,16 @@ export default function Results() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleDownloadPDF}
-            className="self-start sm:self-center px-4 py-2.5 rounded-xl border border-teal-600 bg-teal-50 hover:bg-teal-100 text-teal-900 text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer shadow-2xs transition"
-          >
-            <Printer size={16} className="text-teal-700" />
-            <span>{downloading ? "Preparing..." : "Print / Save PDF"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              className="px-4 py-2.5 rounded-xl border border-teal-600 bg-teal-50 hover:bg-teal-100 text-teal-900 text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer shadow-2xs transition"
+            >
+              <Printer size={16} className="text-teal-700" />
+              <span>{downloading ? "Preparing..." : "Print / Save PDF"}</span>
+            </button>
+          </div>
         </div>
 
         {/* Big Reassuring Status Card */}
@@ -187,10 +208,12 @@ export default function Results() {
               : "Your test results indicate significant knee pain, restricted movement, or joint friction. We recommend consulting a doctor or visiting your local health center for an in-person knee exam."}
           </p>
 
-          <div className="mt-6 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-2xs text-xs sm:text-sm font-bold text-slate-800">
-            <span>Overall Score: <strong>{compositeScore} / 100</strong></span>
+          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-3 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-2xs text-xs sm:text-sm font-bold text-slate-800">
+            <span>Overall Joint Score: <strong>{compositeScore} / 100</strong></span>
             <span>&bull;</span>
-            <span>Joint Condition: <strong className={isLow ? "text-emerald-700" : isModerate ? "text-amber-700" : "text-rose-700"}>{riskCategory}</strong></span>
+            <span>Condition Level: <strong className={isLow ? "text-emerald-700" : isModerate ? "text-amber-700" : "text-rose-700"}>{riskCategory}</strong></span>
+            <span>&bull;</span>
+            <span>K-L Stage: <strong>Grade {klProxy}</strong></span>
           </div>
         </div>
 
@@ -226,6 +249,44 @@ export default function Results() {
               <p className="text-xs text-slate-600 mt-0.5">
                 {burstCount <= 2 ? "Quiet, smooth joint" : burstCount <= 4 ? "Mild occasional popping" : "Frequent joint friction"}
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sandhi AI 3-Pillar Sub-Score Breakdown */}
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 className="text-base font-bold text-slate-900">
+              Tri-Factor Multimodal Sub-Scores
+            </h3>
+            <span className="text-xs font-mono font-bold text-slate-500">
+              Final = (0.30 &times; Q) + (0.35 &times; CV) + (0.35 &times; HW)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-bold text-teal-800 uppercase">1. Questionnaire (30%)</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.qScore ?? womacScore}/100</span>
+              </div>
+              <p className="text-[11px] text-slate-500">WOMAC pain, stiffness &amp; physical function</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-bold text-teal-800 uppercase">2. CV Kinematics (35%)</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.cvScore ?? (reps < 8 ? 72 : 40)}/100</span>
+              </div>
+              <p className="text-[11px] text-slate-500">{reps} chair stands in 30s &bull; {rom}° ROM</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] font-bold text-teal-800 uppercase">3. Hardware Sensor (35%)</span>
+                <span className="text-sm font-black text-slate-900 font-mono">{triFactor.hwScore ?? (burstCount >= 5 ? 65 : 35)}/100</span>
+              </div>
+              <p className="text-[11px] text-slate-500">{burstCount} VAG bursts &bull; {peakFrequency} Hz peak</p>
             </div>
           </div>
         </div>
@@ -280,7 +341,7 @@ export default function Results() {
             <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 flex items-start gap-3.5">
               <span className="text-2xl">👟</span>
               <div>
-                <h4 className="text-sm font-bold text-teal-950">Comfortable Footwear & Support</h4>
+                <h4 className="text-sm font-bold text-teal-950">Comfortable Footwear &amp; Support</h4>
                 <p className="text-xs text-slate-700 mt-1 leading-relaxed">
                   Wear soft, flat footwear with a good cushioned sole and grip. Always use handrails when walking up or down stairs.
                 </p>
@@ -317,46 +378,142 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Help & Helpline card */}
-        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <PhoneCall size={22} className="text-amber-800" />
-            <div>
-              <p className="text-sm font-bold text-amber-950">
-                Have questions or need someone to explain your results?
+        {/* Clinic Referral Action Panel (Moderate & High Risk) */}
+        {riskCategory !== "LOW" && (
+          <div className={`rounded-3xl p-6 border-2 shadow-xs ${
+            riskCategory === "HIGH" ? "bg-rose-50/70 border-rose-300" : "bg-amber-50/70 border-amber-300"
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                  riskCategory === "HIGH" ? "bg-rose-100 text-rose-800 border-rose-200" : "bg-amber-100 text-amber-800 border-amber-200"
+                }`}>
+                  {riskCategory === "HIGH" ? "Priority Hospital Referral" : "Clinical Assessment Recommended"}
+                </span>
+                <h3 className="text-lg font-black text-slate-900 mt-1">
+                  Elevated Knee Risk Markers Detected
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Confirm referral so your local healthcare worker or clinic doctor can review your findings and prepare a care plan.
+                </p>
+              </div>
+
+              {referralConfirmed && (
+                <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold">
+                  ✅ Referral Confirmed
+                </span>
+              )}
+            </div>
+
+            {!referralConfirmed ? (
+              <button
+                onClick={() => {
+                  setReferralConfirmed(true)
+                  try { localStorage.setItem(`sandhi_referred_${patient.abhaId}`, "true") } catch {}
+                  if (screeningIdRef.current) {
+                    updateScreeningStatus(screeningIdRef.current, riskCategory === "HIGH" ? "Referred to Tertiary Centre" : "Referred to Civil Hospital", null)
+                  }
+                }}
+                className={`px-5 py-3 rounded-xl text-xs font-bold transition cursor-pointer shadow-xs ${
+                  riskCategory === "HIGH" 
+                    ? "bg-rose-700 hover:bg-rose-800 text-white" 
+                    : "bg-amber-600 hover:bg-amber-700 text-white"
+                }`}
+              >
+                ✅ Confirm Referral &amp; Notify Doctor Hub
+              </button>
+            ) : (
+              <p className="text-xs text-emerald-800 font-semibold">
+                ✅ Referral confirmed. Your results have been sent to the Doctor Command Hub for review.
               </p>
-              <p className="text-xs text-amber-900">
-                You can call our toll-free patient line: <b>1800-103-6004</b> (Monday to Saturday, 9 AM – 6 PM).
+            )}
+          </div>
+        )}
+
+        {/* Follow-up & Re-assessment Panel */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">🔁 Follow-up &amp; Re-assessment Schedule</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {riskCategory === "HIGH"
+                  ? "Your doctor will schedule a clinical review after assessing your referral."
+                  : riskCategory === "MODERATE"
+                  ? "A 90-day re-assessment is recommended to track your knee stability."
+                  : "An annual re-assessment is recommended to confirm your knee joint health remains steady."}
+              </p>
+            </div>
+            <div className="shrink-0 text-left sm:text-right">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Next Checkup</p>
+              <p className="text-sm font-black text-teal-800 font-mono">
+                {riskCategory === "HIGH" ? "After Doctor Review" : riskCategory === "MODERATE" ? "In 90 Days" : "In 12 Months"}
               </p>
             </div>
           </div>
 
-          <a
-            href="tel:18001036004"
-            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shrink-0 cursor-pointer shadow-2xs"
-          >
-            Call Support Now
-          </a>
+          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={() => {
+                localStorage.removeItem("sandhi_step1")
+                localStorage.removeItem("sandhi_movement")
+                localStorage.removeItem("sandhi_vag")
+                navigate("/screening")
+              }}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+            >
+              <RotateCcw size={14} />
+              <span>Begin New Screening Session</span>
+            </button>
+            <p className="text-[11px] text-slate-500 text-center sm:text-left">
+              Starts a fresh session. Previous results remain safely stored in your history and the Doctor Hub.
+            </p>
+          </div>
         </div>
 
-        {/* Bottom Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
-          <button
-            type="button"
-            onClick={() => navigate("/screening")}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-sm cursor-pointer shadow-2xs transition"
-          >
-            ← Return to Screening Hub
-          </button>
+        {/* Mandatory Clinical Screening Guardrail */}
+        <div className="rounded-2xl bg-amber-50/90 border border-amber-200 p-4 text-amber-950 flex items-start gap-3 shadow-2xs">
+          <ShieldAlert size={20} className="text-amber-700 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">Mandatory Clinical Screening Notice</p>
+            <p className="text-xs text-amber-900 mt-0.5 leading-relaxed">
+              Sandhi-AI is an artificial intelligence-assisted triage and early knee osteoarthritis risk screening tool, not a definitive clinical diagnosis. If risk is moderate or high, consult an Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
+            </p>
+          </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard")}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xs transition"
-          >
-            <span>Doctor / Clinic View</span>
-            <ArrowRight size={16} />
-          </button>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-slate-200">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button 
+              onClick={() => navigate("/screening")} 
+              className="rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              ← Back to Knee Hub
+            </button>
+            {isDoctor && (
+              <button 
+                onClick={() => navigate("/dashboard")} 
+                className="rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-xs font-bold text-teal-900 hover:bg-teal-100 transition cursor-pointer shadow-2xs"
+              >
+                Open Doctor Hub →
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                localStorage.removeItem("sandhi_step1")
+                localStorage.removeItem("sandhi_movement")
+                localStorage.removeItem("sandhi_vag")
+                navigate("/screening")
+              }}
+              className="w-full sm:w-auto rounded-xl bg-teal-700 hover:bg-teal-800 px-6 py-2.5 text-xs font-bold text-white transition cursor-pointer shadow-xs flex items-center justify-center gap-2"
+            >
+              <span>+ Start Next Patient Screening</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
         </div>
 
       </main>

@@ -1,89 +1,76 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import {
-  ClipboardList,
-  Video,
-  Activity,
-  Award,
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  User,
-  History,
+import Navbar from "../components/Navbar"
+import { 
+  ClipboardList, 
+  Video, 
+  Activity, 
+  Award, 
+  ArrowRight, 
+  CheckCircle2, 
+  Clock, 
+  User, 
+  Calendar,
   AlertCircle,
-  RefreshCw,
-  LogOut,
-  Stethoscope,
-  ChevronRight,
   PhoneCall,
-  HeartPulse,
-  HelpCircle,
+  History,
+  RotateCcw,
+  Sparkles,
+  ShieldCheck,
   Smile
 } from "lucide-react"
-import Navbar from "../components/Navbar"
-import {
-  getCurrentScreeningSession,
-  resetScreeningSession,
-  getActiveUser,
-  logoutUser
+import { 
+  getCurrentScreeningSession, 
+  resetCurrentSession
 } from "../utils/supabaseClient"
-import { getAllScreenings } from "../utils/screeningsStore"
+import { getScreenings } from "../utils/screeningsStore"
 
 export default function ScreeningHub() {
   const navigate = useNavigate()
   const [session, setSession] = useState(null)
-  const [currentUser, setCurrentUser] = useState(null)
   const [pastScreenings, setPastScreenings] = useState([])
 
   useEffect(() => {
-    const user = getActiveUser()
-    setCurrentUser(user)
-    const currentSess = getCurrentScreeningSession()
-    setSession(currentSess)
+    // 1. Get or create current session
+    const current = getCurrentScreeningSession()
+    setSession(current)
 
-    const all = getAllScreenings()
-    if (user) {
-      const userTests = all.filter(s => 
-        (s.patient?.name && user.name && s.patient.name.toLowerCase() === user.name.toLowerCase()) ||
-        (s.patient?.phone && user.phone && s.patient.phone === user.phone) ||
-        (s.patient?.id && user.id && s.patient.id === user.id)
-      )
-      setPastScreenings(userTests)
-    } else {
-      setPastScreenings(all.slice(0, 3))
-    }
+    // 2. Load previous patient screenings for history
+    const history = getScreenings()
+    setPastScreenings(history)
   }, [])
 
   const handleStartNew = () => {
-    if (window.confirm("Start a new checkup? Your patient information will be saved.")) {
-      const fresh = resetScreeningSession()
+    if (window.confirm("Start a new screening session? Current progress will be archived.")) {
+      const fresh = resetCurrentSession()
       setSession(fresh)
+      navigate("/assessment")
     }
   }
 
-  const patient = session?.patient || currentUser || {
+  const patient = session?.patient || {
     name: "Bimla Karmakar",
     age: 58,
     gender: "Female",
-    height: 158,
-    weight: 62,
     state: "Assam",
-    district: "Kamrup",
+    district: "Kamrup Rural",
     joint: "Right Knee"
   }
+
   const steps = session?.steps || {}
 
-  // Calculate completion
+  // Calculate completion percentage
   const completedCount = [
     steps.step1?.completed,
     steps.step2?.completed,
     steps.step3?.completed,
     steps.step4?.completed
   ].filter(Boolean).length
+
   const progressPercent = Math.round((completedCount / 4) * 100)
 
-  // Find next step to take
-  const nextStepRoute = !steps.step1?.completed
+  // Find next actionable step
+  const nextStepRoute = !steps.step1?.completed 
     ? "/assessment"
     : !steps.step2?.completed
     ? "/movement"
@@ -161,9 +148,9 @@ export default function ScreeningHub() {
               <button
                 type="button"
                 onClick={() => navigate(nextStepRoute)}
-                className="mt-4 w-full py-3 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                className="mt-4 w-full py-3 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>{nextStepTitle}</span>
+                <span>{completedCount === 0 ? "Start Screening" : "Continue Test"}</span>
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -171,204 +158,167 @@ export default function ScreeningHub() {
           </div>
         </section>
 
-        {/* 4 Step Cards for Patient / Senior */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-teal-700" />
-              <span>Your Knee Checkup Steps</span>
+        {/* 4 Screening Steps Cards */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-lg font-bold text-slate-900">
+              The 4 Steps in Your Checkup
             </h2>
             <button
               onClick={handleStartNew}
-              className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 py-1 px-3 bg-white border border-slate-200 rounded-lg shadow-2xs cursor-pointer"
-              title="Reset progress to start over"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+              title="Reset progress to start from beginning"
             >
-              <RefreshCw size={13} />
-              <span>Start Over</span>
+              <RotateCcw size={13} />
+              <span>Start from beginning</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            {/* Step 1 Card */}
-            <div
+            {/* Step 1 */}
+            <div 
               onClick={() => navigate("/assessment")}
-              className={`rounded-2xl border p-5 sm:p-6 transition-all cursor-pointer bg-white flex flex-col justify-between hover:shadow-md ${
-                steps.step1?.completed
-                  ? "border-emerald-300 ring-1 ring-emerald-400/30"
-                  : "border-slate-200 hover:border-teal-500"
+              className={`rounded-2xl border p-5 transition cursor-pointer flex flex-col justify-between ${
+                steps.step1?.completed 
+                  ? "bg-emerald-50/50 border-emerald-300"
+                  : "bg-white border-slate-200 hover:border-teal-500 hover:shadow-xs"
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-teal-700 text-white text-sm font-bold flex items-center justify-center">
-                      1
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">Takes 2 Minutes</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    steps.step1?.completed ? "bg-emerald-600 text-white" : "bg-teal-100 text-teal-800"
+                  }`}>
+                    {steps.step1?.completed ? <CheckCircle2 size={20} /> : <ClipboardList size={20} />}
                   </div>
-                  {steps.step1?.completed ? (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 size={14} className="text-emerald-700" />
-                      Completed
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-200">
-                      Not Started
-                    </span>
-                  )}
+                  <div>
+                    <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">Step 1 &bull; 2 mins</span>
+                    <h3 className="text-base font-bold text-slate-900 mt-0.5">Knee Questions</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Simple multiple-choice questions about your knee pain during walking, stairs, and resting.
+                    </p>
+                  </div>
                 </div>
-
-                <h3 className="text-lg font-bold text-slate-900">
-                  Step 1: Knee Pain & Daily Habits Questions
-                </h3>
-                <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  5 simple questions about where your knee hurts when walking, climbing stairs, or resting at night.
-                </p>
+                {steps.step1?.completed && (
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full shrink-0">Done</span>
+                )}
               </div>
-
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-bold text-teal-800">
-                <span>{steps.step1?.completed ? "Review Answers" : "Start Questions ➔"}</span>
-                <ChevronRight size={18} />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-teal-800 font-bold">
+                <span>{steps.step1?.completed ? "Review Answers →" : "Answer Questions →"}</span>
+                <span className="text-slate-400 font-normal">Audio available 🔊</span>
               </div>
             </div>
 
-            {/* Step 2 Card */}
-            <div
+            {/* Step 2 */}
+            <div 
               onClick={() => navigate("/movement")}
-              className={`rounded-2xl border p-5 sm:p-6 transition-all cursor-pointer bg-white flex flex-col justify-between hover:shadow-md ${
-                steps.step2?.completed
-                  ? "border-emerald-300 ring-1 ring-emerald-400/30"
-                  : "border-slate-200 hover:border-teal-500"
+              className={`rounded-2xl border p-5 transition cursor-pointer flex flex-col justify-between ${
+                steps.step2?.completed 
+                  ? "bg-emerald-50/50 border-emerald-300"
+                  : "bg-white border-slate-200 hover:border-teal-500 hover:shadow-xs"
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-teal-700 text-white text-sm font-bold flex items-center justify-center">
-                      2
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">Takes 30 Seconds</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    steps.step2?.completed ? "bg-emerald-600 text-white" : "bg-teal-100 text-teal-800"
+                  }`}>
+                    {steps.step2?.completed ? <CheckCircle2 size={20} /> : <Video size={20} />}
                   </div>
-                  {steps.step2?.completed ? (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 size={14} className="text-emerald-700" />
-                      Completed
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-200">
-                      Ready
-                    </span>
-                  )}
+                  <div>
+                    <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">Step 2 &bull; 30 secs</span>
+                    <h3 className="text-base font-bold text-slate-900 mt-0.5">Chair Stand Test</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Sit and stand up from a sturdy chair at your own pace. Video demonstration and voice counting included.
+                    </p>
+                  </div>
                 </div>
-
-                <h3 className="text-lg font-bold text-slate-900">
-                  Step 2: 30-Second Chair Stand Test
-                </h3>
-                <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Stand up and sit down safely from a sturdy chair. A video demo shows you exactly how to do it at your own speed.
-                </p>
+                {steps.step2?.completed && (
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full shrink-0">Done</span>
+                )}
               </div>
-
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-bold text-teal-800">
-                <span>{steps.step2?.completed ? "Retake Movement Test" : "Start 30s Stand Test ➔"}</span>
-                <ChevronRight size={18} />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-teal-800 font-bold">
+                <span>{steps.step2?.completed ? "Redo Test →" : "Open Camera Test →"}</span>
+                <span className="text-slate-400 font-normal">Can be skipped if in pain</span>
               </div>
             </div>
 
-            {/* Step 3 Card */}
-            <div
+            {/* Step 3 */}
+            <div 
               onClick={() => navigate("/analysis")}
-              className={`rounded-2xl border p-5 sm:p-6 transition-all cursor-pointer bg-white flex flex-col justify-between hover:shadow-md ${
-                steps.step3?.completed
-                  ? "border-emerald-300 ring-1 ring-emerald-400/30"
-                  : "border-slate-200 hover:border-teal-500"
+              className={`rounded-2xl border p-5 transition cursor-pointer flex flex-col justify-between ${
+                steps.step3?.completed 
+                  ? "bg-emerald-50/50 border-emerald-300"
+                  : "bg-white border-slate-200 hover:border-teal-500 hover:shadow-xs"
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-teal-700 text-white text-sm font-bold flex items-center justify-center">
-                      3
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">Takes 1 Minute</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    steps.step3?.completed ? "bg-emerald-600 text-white" : "bg-teal-100 text-teal-800"
+                  }`}>
+                    {steps.step3?.completed ? <CheckCircle2 size={20} /> : <Activity size={20} />}
                   </div>
-                  {steps.step3?.completed ? (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 size={14} className="text-emerald-700" />
-                      Completed
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-200">
-                      Ready
-                    </span>
-                  )}
+                  <div>
+                    <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">Step 3 &bull; 1 min</span>
+                    <h3 className="text-base font-bold text-slate-900 mt-0.5">Knee Sound Check</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Listens for clicks, grinding or vibrations inside your knee joint using your mobile microphone or sensor band.
+                    </p>
+                  </div>
                 </div>
-
-                <h3 className="text-lg font-bold text-slate-900">
-                  Step 3: Knee Sound & Joint Check
-                </h3>
-                <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Checks for knee clicking, grinding, or popping sounds during movement.
-                </p>
+                {steps.step3?.completed && (
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full shrink-0">Done</span>
+                )}
               </div>
-
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-bold text-teal-800">
-                <span>{steps.step3?.completed ? "Review Joint Check" : "Check Joint Sounds ➔"}</span>
-                <ChevronRight size={18} />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-teal-800 font-bold">
+                <span>{steps.step3?.completed ? "Review Joint Sound →" : "Check Knee Sounds →"}</span>
+                <span className="text-slate-400 font-normal">Microphone / Demo</span>
               </div>
             </div>
 
-            {/* Step 4 Card */}
-            <div
+            {/* Step 4 */}
+            <div 
               onClick={() => navigate("/results")}
-              className={`rounded-2xl border p-5 sm:p-6 transition-all cursor-pointer bg-white flex flex-col justify-between hover:shadow-md ${
-                steps.step4?.completed
-                  ? "border-emerald-300 ring-1 ring-emerald-400/30"
-                  : "border-slate-200 hover:border-teal-500"
+              className={`rounded-2xl border p-5 transition cursor-pointer flex flex-col justify-between ${
+                steps.step4?.completed 
+                  ? "bg-emerald-50/50 border-emerald-300"
+                  : "bg-white border-slate-200 hover:border-teal-500 hover:shadow-xs"
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-teal-700 text-white text-sm font-bold flex items-center justify-center">
-                      4
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-800">Instant</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    steps.step4?.completed ? "bg-emerald-600 text-white" : "bg-teal-100 text-teal-800"
+                  }`}>
+                    {steps.step4?.completed ? <CheckCircle2 size={20} /> : <Award size={20} />}
                   </div>
-                  {steps.step4?.completed ? (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 size={14} className="text-emerald-700" />
-                      Report Ready
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-bold border border-slate-200">
-                      View Advice
-                    </span>
-                  )}
+                  <div>
+                    <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">Step 4 &bull; Summary</span>
+                    <h3 className="text-base font-bold text-slate-900 mt-0.5">Your Results & Advice</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      A clear, understandable breakdown of your knee joint health, risk level, and 4 daily habits for relief.
+                    </p>
+                  </div>
                 </div>
-
-                <h3 className="text-lg font-bold text-slate-900">
-                  Step 4: Your Knee Results & Care Plan
-                </h3>
-                <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Clear, plain-language summary of your knee health, home exercises, and advice on when to consult a doctor.
-                </p>
+                {steps.step4?.completed && (
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full shrink-0">Ready</span>
+                )}
               </div>
-
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-bold text-teal-800">
-                <span>View Full Results & Advice ➔</span>
-                <ChevronRight size={18} />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-teal-800 font-bold">
+                <span>View Full Summary & Advice →</span>
+                <span className="text-slate-400 font-normal">Printable report</span>
               </div>
             </div>
 
           </div>
         </section>
 
-        {/* Elderly & Caregiver Assistance Box */}
-        <section className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0">
+        {/* Helpful Elderly & Caregiver Guidance Card */}
+        <section className="bg-amber-50/80 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
               <Smile size={22} />
             </div>
             <div>
@@ -410,7 +360,7 @@ export default function ScreeningHub() {
                     <th className="py-2.5 px-3">Patient</th>
                     <th className="py-2.5 px-3">Condition Level</th>
                     <th className="py-2.5 px-3">Reps</th>
-                    <th className="py-2.5 px-3">Action Recommended</th>
+                    <th className="py-2.5 px-3">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -437,7 +387,13 @@ export default function ScreeningHub() {
                         {sc.scores?.sitToStandReps ?? 8} reps
                       </td>
                       <td className="py-2.5 px-3 text-slate-600">
-                        {sc.clinicalAction || "Home Exercises & Lifestyle"}
+                        <button
+                          onClick={() => navigate("/results")}
+                          className="text-teal-700 hover:text-teal-800 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>View Report</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -446,6 +402,17 @@ export default function ScreeningHub() {
             </div>
           </section>
         )}
+
+        {/* Statutory Clinical Disclaimer Banner */}
+        <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-amber-900 shadow-2xs">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-amber-950">Statutory Clinical Notice (MDoNER / ICMR Tele-Medicine Guidelines):</p>
+            <p className="mt-0.5 text-amber-900">
+              Sandhi-AI is an artificial intelligence-assisted triage and early knee osteoarthritis risk screening tool. It does not replace diagnostic clinical radiographs or formal consultation by an orthopedic surgeon.
+            </p>
+          </div>
+        </div>
 
       </main>
 

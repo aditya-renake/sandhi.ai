@@ -10,7 +10,7 @@ export default function Navbar({ onPortalChange }) {
   const [portalMode, setPortalMode] = useState("asha")
   const [selectedLang, setSelectedLang] = useState("en")
   const [textSize, setTextSize] = useState("normal") // "normal" | "large" | "xl"
-  const [user, setUser] = useState({ username: "invictus", full_name: "Admin Invictus", role: "admin" })
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
     const savedPortal = localStorage.getItem("sandhi_portal_mode") || "asha"
@@ -76,6 +76,7 @@ export default function Navbar({ onPortalChange }) {
   const handleLogout = () => {
     localStorage.removeItem("sandhi_token")
     localStorage.removeItem("sandhi_user")
+    setUser(null)
     navigate("/")
   }
 
@@ -108,7 +109,7 @@ export default function Navbar({ onPortalChange }) {
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium hidden sm:block">
-              Free Community Knee Screening & Care
+              Free Community Knee Screening &bull; MDoNER 26004
             </p>
           </div>
         </div>
@@ -206,20 +207,25 @@ export default function Navbar({ onPortalChange }) {
             </select>
           </div>
 
-          {/* Exit / Logout if logged in */}
+          {/* User profile & Logout if logged in */}
           {user && (
-            <button
-              onClick={handleLogout}
-              title="Exit / Sign out"
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition text-xs font-medium cursor-pointer flex items-center gap-1"
-            >
-              <LogOut size={14} />
-              <span className="hidden sm:inline">Exit</span>
-            </button>
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              <div className="hidden lg:block text-right">
+                <p className="text-xs font-bold text-slate-800">{user.full_name || user.username}</p>
+                <p className="text-[10px] text-teal-700 capitalize font-medium">{user.role || "Doctor"}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Exit / Sign out"
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition text-xs font-medium cursor-pointer flex items-center gap-1"
+              >
+                <LogOut size={14} />
+                <span className="hidden sm:inline">Exit</span>
+              </button>
+            </div>
           )}
 
         </div>
-
       </div>
     </header>
   )

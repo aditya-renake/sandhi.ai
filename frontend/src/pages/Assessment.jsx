@@ -1,17 +1,24 @@
-import { useState, useEffect, useMemo } from "react"
-import ScreeningStepper from "../components/ScreeningStepper"
-import { getActiveUser, getCurrentScreeningSession, updateScreeningStep } from "../utils/supabaseClient" 
+import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import ScreeningStepper from "../components/ScreeningStepper"
 import { 
-  ArrowLeft, 
+  updateScreeningStep, 
+  getCurrentScreeningSession,
+  getActiveUser 
+} from "../utils/supabaseClient"
+import { 
+  ClipboardCheck, 
   ArrowRight, 
-  CheckCircle2, 
-  Clock, 
-  Footprints, 
-  HeartPulse, 
-  Volume2,
-  Smile,
-  ShieldCheck,
+  ArrowLeft, 
+  Volume2, 
+  AlertCircle, 
+  Activity, 
+  Briefcase, 
+  HelpCircle,
+  CheckCircle2,
+  ChevronRight,
+  Shield,
+  Heart,
   User,
   Scale
 } from "lucide-react"
@@ -61,11 +68,23 @@ const SEVERITY_LEVELS = [
 
 export default function Assessment() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState("pain") // "pain" | "stiffness" | "function" | "details"
+  
+  // Tab Navigation: 'pain' | 'stiffness' | 'function' | 'habits'
+  const [activeTab, setActiveTab] = useState("pain")
 
-  // Answers State
-  const [painAnswers, setPainAnswers] = useState({ p1: 2, p2: 3, p3: 1, p4: 1, p5: 2 })
-  const [stiffnessAnswers, setStiffnessAnswers] = useState({ s1: 3, s2: 2 })
+  // Questionnaire Responses
+  const [painAnswers, setPainAnswers] = useState(() => {
+    const init = {}
+    PAIN_QUESTIONS.forEach(q => { init[q.id] = 2 })
+    return init
+  })
+
+  const [stiffnessAnswers, setStiffnessAnswers] = useState(() => {
+    const init = {}
+    STIFFNESS_QUESTIONS.forEach(q => { init[q.id] = 2 })
+    return init
+  })
+
   const [functionAnswers, setFunctionAnswers] = useState(() => {
     const init = {}
     FUNCTION_QUESTIONS.forEach(q => { init[q.id] = 2 })
@@ -81,21 +100,28 @@ export default function Assessment() {
         age: 58,
         gender: "Female",
         state: "Assam",
-        district: "Kamrup",
+        district: "Kamrup Rural",
         joint: "Right Knee"
       }
     } catch {
-      return { name: "Bimla Karmakar", age: 58, gender: "Female", state: "Assam", district: "Kamrup", joint: "Right Knee" }
+      return {
+        name: "Bimla Karmakar",
+        age: 58,
+        gender: "Female",
+        state: "Assam",
+        district: "Kamrup Rural",
+        joint: "Right Knee"
+      }
     }
   })
 
   const [heightCm, setHeightCm] = useState(158)
   const [weightKg, setWeightKg] = useState(64)
-  const [occupationType, setOccupationType] = useState("manual")
-  const [familyHistory, setFamilyHistory] = useState(false)
+  const [occupationType, setOccupationType] = useState("manual") // 'manual' | 'sedentary'
   const [priorInjury, setPriorInjury] = useState(false)
+  const [familyHistory, setFamilyHistory] = useState(false)
 
-  // Auto-load session/user data
+  // Auto-load returning patient covariates from profile/session
   useEffect(() => {
     const user = getActiveUser()
     const session = getCurrentScreeningSession()
@@ -110,43 +136,41 @@ export default function Assessment() {
         district: p.district || prev.district,
         joint: p.joint || prev.joint
       }))
-      if (p.height) setHeightCm(Number(p.height))
-      if (p.weight) setWeightKg(Number(p.weight))
+      if (p.height) setHeightCm(p.height)
+      if (p.weight) setWeightKg(p.weight)
       if (p.occupation) setOccupationType(p.occupation.toLowerCase().includes("manual") || p.occupation.toLowerCase().includes("tea") ? "manual" : "sedentary")
-      if (p.priorInjury) setPriorInjury(String(p.priorInjury).toLowerCase().includes("yes"))
-      if (p.familyHistory) setFamilyHistory(String(p.familyHistory).toLowerCase().includes("yes"))
+      if (p.priorInjury !== undefined) setPriorInjury(typeof p.priorInjury === "boolean" ? p.priorInjury : String(p.priorInjury).toLowerCase().includes("yes"))
+      if (p.familyHistory !== undefined) setFamilyHistory(typeof p.familyHistory === "boolean" ? p.familyHistory : String(p.familyHistory).toLowerCase().includes("yes"))
     }
   }, [])
 
-  // Auto-calculate BMI
+  // Live BMI calculation
   const bmi = useMemo(() => {
-    const hMeter = Math.max(0.5, heightCm / 100)
-    return Number((weightKg / (hMeter * hMeter)).toFixed(1))
+    const heightM = heightCm / 100
+    if (heightM <= 0) return 24.5
+    return parseFloat((weightKg / (heightM * heightM)).toFixed(1))
   }, [heightCm, weightKg])
 
-  // Scoring Formula
+  // Scoring Logic
   const scoring = useMemo(() => {
-    const pValues = Object.values(painAnswers)
-    const sValues = Object.values(stiffnessAnswers)
-    const fValues = Object.values(functionAnswers)
+    const painScore = Object.values(painAnswers).reduce((a, b) => a + b, 0)
+    const stiffnessScore = Object.values(stiffnessAnswers).reduce((a, b) => a + b, 0)
+    const functionScore = Object.values(functionAnswers).reduce((a, b) => a + b, 0)
 
-    const painSum = pValues.reduce((a, b) => a + Number(b || 0), 0)
-    const stiffSum = sValues.reduce((a, b) => a + Number(b || 0), 0)
-    const funcSum = fValues.reduce((a, b) => a + Number(b || 0), 0)
-
-    const painScore = (painSum / (5 * 4)) * 20.0
-    const stiffnessScore = (stiffSum / (2 * 4)) * 8.0
-    const functionScore = (funcSum / (17 * 4)) * 68.0
     const totalWomac = painScore + stiffnessScore + functionScore
-
     const normalizedScore = Math.min(100, Math.round((totalWomac / 96.0) * 100.0))
 
+    let category = "MILD"
+    if (normalizedScore >= 60) category = "SEVERE"
+    else if (normalizedScore >= 35) category = "MODERATE"
+
     return {
-      painScore: Number(painScore.toFixed(1)),
-      stiffnessScore: Number(stiffnessScore.toFixed(1)),
-      functionScore: Number(functionScore.toFixed(1)),
-      totalWomac: Number(totalWomac.toFixed(1)),
-      normalizedScore
+      painScore,
+      stiffnessScore,
+      functionScore,
+      totalWomac,
+      normalizedScore,
+      category
     }
   }, [painAnswers, stiffnessAnswers, functionAnswers])
 
@@ -182,19 +206,20 @@ export default function Assessment() {
       },
       risk_factors: {
         bmi,
-        bmi_elevated: bmi >= 25.0,
-        occupation_type: occupationType,
         occupation_flag: occupationType === "manual",
-        family_history: familyHistory,
-        prior_injury: priorInjury,
-        height_cm: heightCm,
-        weight_kg: weightKg
+        prior_injury_flag: priorInjury,
+        family_history_flag: familyHistory
       }
     }
 
-    updateScreeningStep(1, assessmentPayload, scoring.normalizedScore)
-    localStorage.setItem("sandhi_womac", JSON.stringify(assessmentPayload))
-    navigate("/movement", { state: { womacScore: scoring.normalizedScore, assessmentData: assessmentPayload } })
+    try {
+      updateScreeningStep(1, assessmentPayload, scoring.normalizedScore)
+    } catch (e) {}
+
+    localStorage.setItem("sandhi_step1", JSON.stringify(assessmentPayload))
+    localStorage.setItem("sandhi_patient", JSON.stringify(patientData))
+
+    navigate("/movement", { state: assessmentPayload })
   }
 
   return (
@@ -222,125 +247,130 @@ export default function Assessment() {
 
           <button
             type="button"
-            onClick={handleContinueToMovement}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+            onClick={() => handleSpeakQuestion("Please answer these simple questions about your knee pain, morning stiffness, and daily activities.")}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 text-xs font-bold transition cursor-pointer"
           >
-            <span>Next: 30s Movement Check</span>
-            <ArrowRight size={16} />
+            <Volume2 size={16} className="text-teal-700" />
+            <span>Listen to Instructions</span>
           </button>
         </div>
       </div>
 
-      {/* Main Form Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        
-        {/* Navigation Tabs between Question Categories */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+        {/* Section Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-200/70 p-1.5 rounded-2xl">
           <button
             type="button"
             onClick={() => setActiveTab("pain")}
-            className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === "pain"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+            className={`py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer flex flex-col items-center gap-1 ${
+              activeTab === "pain" 
+                ? "bg-white text-teal-900 shadow-xs" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <span>1. Knee Pain (5)</span>
+            <span>1. Knee Pain</span>
+            <span className="text-[11px] font-normal opacity-80">(5 questions)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("stiffness")}
-            className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === "stiffness"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+            className={`py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer flex flex-col items-center gap-1 ${
+              activeTab === "stiffness" 
+                ? "bg-white text-teal-900 shadow-xs" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <span>2. Morning Stiffness (2)</span>
+            <span>2. Stiffness</span>
+            <span className="text-[11px] font-normal opacity-80">(2 questions)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("function")}
-            className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === "function"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+            className={`py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer flex flex-col items-center gap-1 ${
+              activeTab === "function" 
+                ? "bg-white text-teal-900 shadow-xs" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <span>3. Daily Activities (17)</span>
+            <span>3. Daily Life</span>
+            <span className="text-[11px] font-normal opacity-80">(17 activities)</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("details")}
-            className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === "details"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100"
+            onClick={() => setActiveTab("habits")}
+            className={`py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer flex flex-col items-center gap-1 ${
+              activeTab === "habits" 
+                ? "bg-white text-teal-900 shadow-xs" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <span>4. Body & Work</span>
+            <span>4. Habits & Profile</span>
+            <span className="text-[11px] font-normal opacity-80">(Height, Work)</span>
           </button>
         </div>
 
-        {/* SECTION 1: PAIN QUESTIONS */}
+        {/* TAB 1: PAIN QUESTIONS */}
         {activeTab === "pain" && (
           <div className="space-y-4">
-            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center justify-between">
-              <p className="text-xs sm:text-sm font-bold text-teal-950">
-                How much knee pain do you experience during these 5 daily activities?
-              </p>
-              <button
-                type="button"
-                onClick={() => handleSpeakQuestion("How much knee pain do you experience during these daily activities?")}
-                className="text-xs font-bold text-teal-800 hover:text-teal-950 flex items-center gap-1 px-2.5 py-1 bg-white rounded-lg border border-teal-300 shadow-2xs cursor-pointer"
-              >
-                <Volume2 size={14} />
-                <span>Listen</span>
-              </button>
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🦵</span>
+                <div>
+                  <h2 className="text-sm font-bold text-teal-950">Section 1: Knee Pain</h2>
+                  <p className="text-xs text-teal-900">How much pain do you experience during these everyday situations?</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-teal-800 bg-white px-3 py-1 rounded-full border border-teal-200">
+                5 Questions
+              </span>
             </div>
 
             {PAIN_QUESTIONS.map((q, idx) => {
               const currentVal = painAnswers[q.id]
               return (
-                <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">Question {idx + 1} of 5</span>
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">{q.title}</h3>
-                      <p className="text-xs sm:text-sm text-slate-600 font-medium">{q.desc}</p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                          Q{idx + 1}
+                        </span>
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900">{q.title}</h3>
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500">{q.desc}</p>
                     </div>
+
                     <button
                       type="button"
-                      onClick={() => handleSpeakQuestion(q.title + ". " + q.desc)}
-                      title="Read aloud"
-                      className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-teal-800 hover:bg-teal-50 border border-slate-200 cursor-pointer shrink-0"
+                      onClick={() => handleSpeakQuestion(q.desc)}
+                      title="Listen to question"
+                      className="p-2 rounded-xl bg-slate-50 hover:bg-teal-50 text-slate-500 hover:text-teal-700 border border-slate-200 transition cursor-pointer shrink-0"
                     >
                       <Volume2 size={16} />
                     </button>
                   </div>
 
-                  {/* Big Accessible Options */}
+                  {/* Large Touch-Friendly Severity Options */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2">
-                    {SEVERITY_LEVELS.map(opt => {
-                      const isSelected = currentVal === opt.value
+                    {SEVERITY_LEVELS.map(lvl => {
+                      const isSelected = currentVal === lvl.value
                       return (
                         <button
-                          key={opt.value}
+                          key={lvl.value}
                           type="button"
-                          onClick={() => handleSelectSeverity(q.id, opt.value, "pain")}
-                          className={`py-3 px-3 rounded-xl border-2 text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                            isSelected
-                              ? "bg-teal-700 border-teal-800 text-white font-bold shadow-xs scale-[1.02]"
-                              : opt.bg
+                          onClick={() => handleSelectSeverity(q.id, lvl.value, "pain")}
+                          className={`py-3 px-2 rounded-xl border-2 text-center transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected 
+                              ? "border-teal-700 bg-teal-50 text-teal-950 font-bold shadow-xs ring-2 ring-teal-600/20" 
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          <span className="text-sm font-extrabold">{opt.label}</span>
-                          <span className={`text-[11px] ${isSelected ? "text-teal-100" : "text-slate-500"}`}>
-                            {opt.sublabel}
-                          </span>
+                          <span className="text-sm font-extrabold">{lvl.label}</span>
+                          <span className="text-[11px] text-slate-500 font-medium">{lvl.sublabel}</span>
                         </button>
                       )
                     })}
@@ -355,68 +385,69 @@ export default function Assessment() {
                 onClick={() => setActiveTab("stiffness")}
                 className="py-3 px-6 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Continue to Morning Stiffness</span>
-                <ArrowRight size={16} />
+                <span>Continue to Stiffness →</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* SECTION 2: STIFFNESS QUESTIONS */}
+        {/* TAB 2: STIFFNESS QUESTIONS */}
         {activeTab === "stiffness" && (
           <div className="space-y-4">
-            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center justify-between">
-              <p className="text-xs sm:text-sm font-bold text-teal-950">
-                Stiffness is a feeling of tightness or restriction when trying to bend or move your knee.
-              </p>
-              <button
-                type="button"
-                onClick={() => handleSpeakQuestion("Stiffness is a feeling of tightness or restriction when trying to bend or move your knee.")}
-                className="text-xs font-bold text-teal-800 hover:text-teal-950 flex items-center gap-1 px-2.5 py-1 bg-white rounded-lg border border-teal-300 shadow-2xs cursor-pointer"
-              >
-                <Volume2 size={14} />
-                <span>Listen</span>
-              </button>
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🌅</span>
+                <div>
+                  <h2 className="text-sm font-bold text-teal-950">Section 2: Knee Stiffness</h2>
+                  <p className="text-xs text-teal-900">Do your knees feel tight or difficult to bend after resting?</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-teal-800 bg-white px-3 py-1 rounded-full border border-teal-200">
+                2 Questions
+              </span>
             </div>
 
             {STIFFNESS_QUESTIONS.map((q, idx) => {
               const currentVal = stiffnessAnswers[q.id]
               return (
-                <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">Question {idx + 1} of 2</span>
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">{q.title}</h3>
-                      <p className="text-xs sm:text-sm text-slate-600 font-medium">{q.desc}</p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                          Q{idx + 1}
+                        </span>
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900">{q.title}</h3>
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500">{q.desc}</p>
                     </div>
+
                     <button
                       type="button"
-                      onClick={() => handleSpeakQuestion(q.title + ". " + q.desc)}
-                      title="Read aloud"
-                      className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-teal-800 hover:bg-teal-50 border border-slate-200 cursor-pointer shrink-0"
+                      onClick={() => handleSpeakQuestion(q.desc)}
+                      title="Listen to question"
+                      className="p-2 rounded-xl bg-slate-50 hover:bg-teal-50 text-slate-500 hover:text-teal-700 border border-slate-200 transition cursor-pointer shrink-0"
                     >
                       <Volume2 size={16} />
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2">
-                    {SEVERITY_LEVELS.map(opt => {
-                      const isSelected = currentVal === opt.value
+                    {SEVERITY_LEVELS.map(lvl => {
+                      const isSelected = currentVal === lvl.value
                       return (
                         <button
-                          key={opt.value}
+                          key={lvl.value}
                           type="button"
-                          onClick={() => handleSelectSeverity(q.id, opt.value, "stiffness")}
-                          className={`py-3 px-3 rounded-xl border-2 text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                            isSelected
-                              ? "bg-teal-700 border-teal-800 text-white font-bold shadow-xs scale-[1.02]"
-                              : opt.bg
+                          onClick={() => handleSelectSeverity(q.id, lvl.value, "stiffness")}
+                          className={`py-3 px-2 rounded-xl border-2 text-center transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected 
+                              ? "border-teal-700 bg-teal-50 text-teal-950 font-bold shadow-xs ring-2 ring-teal-600/20" 
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          <span className="text-sm font-extrabold">{opt.label}</span>
-                          <span className={`text-[11px] ${isSelected ? "text-teal-100" : "text-slate-500"}`}>
-                            {opt.sublabel}
-                          </span>
+                          <span className="text-sm font-extrabold">{lvl.label}</span>
+                          <span className="text-[11px] text-slate-500 font-medium">{lvl.sublabel}</span>
                         </button>
                       )
                     })}
@@ -431,77 +462,76 @@ export default function Assessment() {
                 onClick={() => setActiveTab("pain")}
                 className="py-3 px-5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-sm flex items-center gap-2 cursor-pointer"
               >
-                <ArrowLeft size={16} />
-                <span>Back to Pain</span>
+                <span>← Back to Pain</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => setActiveTab("function")}
                 className="py-3 px-6 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Continue to Daily Activities</span>
-                <ArrowRight size={16} />
+                <span>Continue to Daily Life →</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* SECTION 3: FUNCTION QUESTIONS */}
+        {/* TAB 3: DAILY LIFE / PHYSICAL FUNCTION */}
         {activeTab === "function" && (
           <div className="space-y-4">
-            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center justify-between">
-              <p className="text-xs sm:text-sm font-bold text-teal-950">
-                How much difficulty do you have performing your regular household or outdoor activities?
-              </p>
-              <button
-                type="button"
-                onClick={() => handleSpeakQuestion("How much difficulty do you have performing your regular household or outdoor activities?")}
-                className="text-xs font-bold text-teal-800 hover:text-teal-950 flex items-center gap-1 px-2.5 py-1 bg-white rounded-lg border border-teal-300 shadow-2xs cursor-pointer"
-              >
-                <Volume2 size={14} />
-                <span>Listen</span>
-              </button>
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏡</span>
+                <div>
+                  <h2 className="text-sm font-bold text-teal-950">Section 3: Daily Activities</h2>
+                  <p className="text-xs text-teal-900">How much difficulty do you have performing these everyday chores and activities?</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-teal-800 bg-white px-3 py-1 rounded-full border border-teal-200">
+                17 Activities
+              </span>
             </div>
 
             {FUNCTION_QUESTIONS.map((q, idx) => {
               const currentVal = functionAnswers[q.id]
               return (
-                <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-2.5">
+                <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-xs font-bold text-teal-800">Activity {idx + 1} of 17</span>
-                      <h4 className="text-base font-bold text-slate-900">{q.title}</h4>
-                      <p className="text-xs sm:text-sm text-slate-600">{q.desc}</p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                          {idx + 1}
+                        </span>
+                        <h3 className="text-base font-bold text-slate-900">{q.title}</h3>
+                      </div>
+                      <p className="text-xs text-slate-500">{q.desc}</p>
                     </div>
+
                     <button
                       type="button"
-                      onClick={() => handleSpeakQuestion(q.title + ". " + q.desc)}
-                      title="Read aloud"
-                      className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:text-teal-800 hover:bg-teal-50 border border-slate-200 cursor-pointer shrink-0"
+                      onClick={() => handleSpeakQuestion(q.desc)}
+                      title="Listen to question"
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-teal-50 text-slate-500 hover:text-teal-700 border border-slate-200 transition cursor-pointer shrink-0"
                     >
-                      <Volume2 size={14} />
+                      <Volume2 size={15} />
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
-                    {SEVERITY_LEVELS.map(opt => {
-                      const isSelected = currentVal === opt.value
+                    {SEVERITY_LEVELS.map(lvl => {
+                      const isSelected = currentVal === lvl.value
                       return (
                         <button
-                          key={opt.value}
+                          key={lvl.value}
                           type="button"
-                          onClick={() => handleSelectSeverity(q.id, opt.value, "function")}
-                          className={`py-2 px-2 rounded-xl border-2 text-center transition cursor-pointer flex flex-col items-center justify-center ${
-                            isSelected
-                              ? "bg-teal-700 border-teal-800 text-white font-bold shadow-xs"
-                              : opt.bg
+                          onClick={() => handleSelectSeverity(q.id, lvl.value, "function")}
+                          className={`py-2.5 px-2 rounded-xl border-2 text-center transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected 
+                              ? "border-teal-700 bg-teal-50 text-teal-950 font-bold shadow-xs ring-2 ring-teal-600/20" 
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          <span className="text-xs font-bold">{opt.label}</span>
-                          <span className={`text-[10px] ${isSelected ? "text-teal-100" : "text-slate-500"}`}>
-                            {opt.sublabel}
-                          </span>
+                          <span className="text-xs sm:text-sm font-extrabold">{lvl.label}</span>
+                          <span className="text-[10px] sm:text-[11px] text-slate-500">{lvl.sublabel}</span>
                         </button>
                       )
                     })}
@@ -516,82 +546,78 @@ export default function Assessment() {
                 onClick={() => setActiveTab("stiffness")}
                 className="py-3 px-5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-sm flex items-center gap-2 cursor-pointer"
               >
-                <ArrowLeft size={16} />
-                <span>Back to Stiffness</span>
+                <span>← Back to Stiffness</span>
               </button>
-
               <button
                 type="button"
-                onClick={() => setActiveTab("details")}
+                onClick={() => setActiveTab("habits")}
                 className="py-3 px-6 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Continue to Body & Work</span>
-                <ArrowRight size={16} />
+                <span>Continue to Habits →</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* SECTION 4: BODY & WORK DEMOGRAPHICS */}
-        {activeTab === "details" && (
-          <div className="space-y-4">
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Your Body & Daily Routine</h3>
-                <p className="text-xs sm:text-sm text-slate-600">
-                  These details help calculate body joint pressure (BMI) and physical workload on your knees.
-                </p>
+        {/* TAB 4: HABITS, PROFILE & BMI */}
+        {activeTab === "habits" && (
+          <div className="space-y-6">
+            <div className="bg-teal-50/80 border border-teal-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🌱</span>
+                <div>
+                  <h2 className="text-sm font-bold text-teal-950">Section 4: Body Profile & Daily Routine</h2>
+                  <p className="text-xs text-teal-900">Your weight and daily activities help us give you accurate knee protection advice.</p>
+                </div>
               </div>
+              <span className="text-xs font-bold text-teal-800 bg-white px-3 py-1 rounded-full border border-teal-200">
+                Body & Routine
+              </span>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Height */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Height (in centimeters):</label>
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+              
+              {/* Height and Weight */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Your Height (cm)
+                  </label>
                   <input
                     type="number"
                     value={heightCm}
-                    onChange={(e) => setHeightCm(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-bold text-slate-900 text-base focus:border-teal-600 focus:outline-none"
+                    onChange={(e) => setHeightCm(parseInt(e.target.value) || 155)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base font-bold text-slate-900 focus:outline-teal-600"
+                    placeholder="e.g. 158"
                   />
-                  <span className="text-[11px] text-slate-500">e.g. 158 cm (approx. 5 feet 2 inches)</span>
+                  <span className="text-[11px] text-slate-400 mt-1 block">Around {(heightCm / 30.48).toFixed(1)} feet</span>
                 </div>
 
-                {/* Weight */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Weight (in kilograms):</label>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Your Weight (kg)
+                  </label>
                   <input
                     type="number"
                     value={weightKg}
-                    onChange={(e) => setWeightKg(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 font-bold text-slate-900 text-base focus:border-teal-600 focus:outline-none"
+                    onChange={(e) => setWeightKg(parseInt(e.target.value) || 60)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base font-bold text-slate-900 focus:outline-teal-600"
+                    placeholder="e.g. 64"
                   />
-                  <span className="text-[11px] text-slate-500">e.g. 64 kg</span>
+                  <span className="text-[11px] text-slate-400 mt-1 block">Body Mass Index: <b>{bmi} kg/m²</b></span>
                 </div>
               </div>
 
-              {/* BMI Indicator */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Calculated Body Mass Index (BMI)</span>
-                  <p className="text-lg font-extrabold text-slate-900">{bmi} kg/m²</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  bmi >= 25 ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"
-                }`}>
-                  {bmi >= 25 ? "Elevated Joint Pressure" : "Healthy Range"}
-                </span>
-              </div>
-
-              {/* Daily Work / Occupation */}
+              {/* Occupation Type */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700">Daily Work & Physical Activity:</label>
+                <label className="text-xs font-bold text-slate-700">What is your typical daily physical routine?</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setOccupationType("manual")}
                     className={`p-4 rounded-xl border-2 text-left transition cursor-pointer ${
-                      occupationType === "manual"
-                        ? "border-teal-700 bg-teal-50 text-teal-950 font-bold"
+                      occupationType === "manual" 
+                        ? "border-teal-700 bg-teal-50 text-teal-950 font-bold" 
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -603,8 +629,8 @@ export default function Assessment() {
                     type="button"
                     onClick={() => setOccupationType("sedentary")}
                     className={`p-4 rounded-xl border-2 text-left transition cursor-pointer ${
-                      occupationType === "sedentary"
-                        ? "border-teal-700 bg-teal-50 text-teal-950 font-bold"
+                      occupationType === "sedentary" 
+                        ? "border-teal-700 bg-teal-50 text-teal-950 font-bold" 
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -614,54 +640,72 @@ export default function Assessment() {
                 </div>
               </div>
 
-              {/* Past Injury */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700">Have you ever had a past knee injury or surgery?</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-bold">
-                    <input
-                      type="radio"
-                      name="injury"
-                      checked={priorInjury}
-                      onChange={() => setPriorInjury(true)}
-                      className="w-4 h-4 text-teal-600"
-                    />
-                    <span>Yes</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-bold">
-                    <input
-                      type="radio"
-                      name="injury"
-                      checked={!priorInjury}
-                      onChange={() => setPriorInjury(false)}
-                      className="w-4 h-4 text-teal-600"
-                    />
-                    <span>No</span>
-                  </label>
-                </div>
+              {/* Family History & Past Injury Checkboxes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <label className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100/70 cursor-pointer transition">
+                  <input
+                    type="checkbox"
+                    checked={familyHistory}
+                    onChange={(e) => setFamilyHistory(e.target.checked)}
+                    className="w-4 h-4 text-teal-700 rounded border-slate-300 focus:ring-teal-600"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900">Family History of Arthritis</span>
+                    <p className="text-[11px] text-slate-500">Parents or siblings with severe knee pain or surgery</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100/70 cursor-pointer transition">
+                  <input
+                    type="checkbox"
+                    checked={priorInjury}
+                    onChange={(e) => setPriorInjury(e.target.checked)}
+                    className="w-4 h-4 text-teal-700 rounded border-slate-300 focus:ring-teal-600"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900">Prior Knee Joint Injury</span>
+                    <p className="text-[11px] text-slate-500">Past ligament sprain, meniscus damage, or fracture</p>
+                  </div>
+                </label>
+              </div>
+
+            </div>
+
+            {/* Final Scoring Summary Banner */}
+            <div className="p-5 rounded-2xl bg-teal-50 border border-teal-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+              <div>
+                <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+                  Knee Symptoms Summary Score
+                </span>
+                <p className="text-2xl font-black text-slate-900 mt-0.5">
+                  WOMAC Score: {scoring.normalizedScore} <span className="text-xs font-normal text-slate-500">/ 100</span>
+                </p>
+                <p className="text-xs text-slate-600 mt-1">
+                  Pain: <b className="text-teal-800">{scoring.painScore}/20</b> &bull; Stiffness: <b className="text-amber-800">{scoring.stiffnessScore}/8</b> &bull; Function: <b className="text-cyan-800">{scoring.functionScore}/68</b>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("function")}
+                  className="py-3 px-5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-sm flex items-center gap-2 cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Back to Activities</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleContinueToMovement}
+                  className="py-3.5 px-8 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm sm:text-base flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <span>Save & Continue to Step 2: Movement Test</span>
+                  <ArrowRight size={18} />
+                </button>
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-between pt-4">
-              <button
-                type="button"
-                onClick={() => setActiveTab("function")}
-                className="py-3 px-5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-sm flex items-center gap-2 cursor-pointer"
-              >
-                <ArrowLeft size={16} />
-                <span>Back to Activities</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleContinueToMovement}
-                className="py-3.5 px-8 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm sm:text-base flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <span>Save & Continue to Step 2: Movement Test</span>
-                <ArrowRight size={18} />
-              </button>
-            </div>
           </div>
         )}
 

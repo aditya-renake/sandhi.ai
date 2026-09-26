@@ -218,3 +218,4 @@ export function resetScreeningSession() {
   localStorage.removeItem(CURRENT_SCREENING_KEY)
   return getCurrentScreeningSession()
 }
+export const resetCurrentSession = resetScreeningSession

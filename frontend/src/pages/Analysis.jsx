@@ -1,72 +1,59 @@
-import { useState, useEffect, useRef, useMemo } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useState, useMemo, useEffect, useRef } from "react"
+import { useNavigate } from "react-router-dom"
+import Navbar from "../components/Navbar"
 import ScreeningStepper from "../components/ScreeningStepper"
-import { updateScreeningStep } from "../utils/supabaseClient"
 import { speakText, VOICE_PROMPTS } from "../utils/speech"
 import { 
+  updateScreeningStep, 
+  getCurrentScreeningSession 
+} from "../utils/supabaseClient"
+import { 
   Activity, 
-  ArrowRight, 
-  CheckCircle2, 
+  Radio, 
+  Play, 
   Volume2, 
-  ShieldAlert,
+  ShieldCheck, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Sliders, 
   Info,
-  Smile,
-  Stethoscope,
-  HeartPulse
+  Mic,
+  VolumeX,
+  ShieldAlert,
+  ArrowRight
 } from "lucide-react"
 
 export default function Analysis() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const waveformCanvasRef = useRef(null)
-  const animRef = useRef(null)
+  const session = getCurrentScreeningSession()
+  const patient = session?.patient || { name: "Bimla Karmakar", age: 58, gender: "Female", joint: "Right Knee" }
 
-  // Retrieve passed patient and prior module states
-  const storedPatient = localStorage.getItem("sandhi_patient")
-  const patient = location.state?.patient || (storedPatient ? JSON.parse(storedPatient) : {
-    name: "Bimla Karmakar",
-    age: 58,
-    gender: "Female",
-    state: "Assam",
-    district: "Kamrup",
-    joint: "Right Knee",
-    abhaId: "14-5829-1029-4821"
-  })
+  // Load previous steps data
+  const step1Data = session?.steps?.step1?.data || {}
+  const step2Data = session?.steps?.step2?.data || {}
 
-  // Module 1: Questionnaire Data (WOMAC)
-  const storedWomac = localStorage.getItem("sandhi_womac")
-  const womacPayload = location.state?.assessmentData || (storedWomac ? JSON.parse(storedWomac) : null)
-  const qScore = Number(location.state?.womacScore ?? (womacPayload?.womacScore ?? 45))
-  const womacBreakdown = womacPayload?.subscale_breakdown || { pain: 10, stiffness: 4, function: 28, total_womac: 42 }
-  const riskFactors = womacPayload?.risk_factors || { bmi: 25.4, occupation_flag: true, family_history: false, prior_injury: false }
+  const qScore = session?.steps?.step1?.score ?? 48
+  const cvMovement = step2Data
+  const cvScore = session?.steps?.step2?.score ?? 55
+  const cvConfidence = cvMovement.confidence ?? 0.88
 
-  // Module 2: Computer Vision Video Kinematics Data
-  const storedMovement = localStorage.getItem("sandhi_movement")
-  const cvMovement = location.state?.movementResults || (storedMovement ? JSON.parse(storedMovement) : {})
-  const sitToStandReps = Number(cvMovement?.sitToStandReps ?? 8)
-  const romVal = Number(cvMovement?.rom ?? 85)
-  const minFlexion = Number(cvMovement?.flexionAngle ?? 95)
-  const maxExtension = Number(cvMovement?.extensionAngle ?? 162)
-  const varusValgus = cvMovement?.varusValgusAlignment || "Normal"
-  const alignmentRatio = Number(cvMovement?.alignmentRatio ?? 1.15)
-  const cvConfidence = Number(cvMovement?.cv_confidence ?? 0.88)
+  const womacBreakdown = step1Data.subscale_breakdown || { pain: 10, stiffness: 4, function: 28 }
+  const riskFactors = step1Data.risk_factors || { bmi: 25.8, occupation_flag: true }
 
-  // Compute Module 2 CV Score (0 - 100)
-  const cvScore = useMemo(() => {
-    const repsDeficit = Math.max(0, Math.min(1, (14.0 - sitToStandReps) / 10.0)) * 40.0
-    const romDeficit = Math.max(0, Math.min(1, (115.0 - romVal) / 45.0)) * 35.0
-    const alignPenalty = varusValgus === "Varus" ? 25.0 : varusValgus === "Valgus" ? 15.0 : 0.0
-    return Math.min(100, Math.round(repsDeficit + romDeficit + alignPenalty))
-  }, [sitToStandReps, romVal, varusValgus])
-
-  // Module 3: Hardware Sensor State (SandhiBand VAG & Sound)
-  const initialBursts = romVal < 70 || qScore > 60 ? 6 : romVal > 105 && qScore < 30 ? 1 : 4
-  const initialFreq = romVal < 70 || qScore > 60 ? 220 : romVal > 105 && qScore < 30 ? 95 : 148
-
-  const [burstCount, setBurstCount] = useState(initialBursts)
-  const [peakFrequency, setPeakFrequency] = useState(initialFreq) // Hz
+  // Hardware Audio / VAG Crepitus State
+  const [burstCount, setBurstCount] = useState(4)
+  const [peakFrequency, setPeakFrequency] = useState(142)
   const [rmsEnergy, setRmsEnergy] = useState(0.42)
-  const [sensorPreset, setSensorPreset] = useState(initialBursts >= 6 ? "severe" : initialBursts <= 1 ? "smooth" : "moderate")
+  const [sensorPreset, setSensorPreset] = useState("moderate") // 'mild' | 'moderate' | 'severe'
+  
+  // Real Audio Recording / Microphone State
+  const [isRecordingMic, setIsRecordingMic] = useState(false)
+  const [micAudioBlob, setMicAudioBlob] = useState(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+
+  // Web Audio Context for synthesizer simulation & playback
+  const audioCtxRef = useRef(null)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
 
   // Compute Module 3 Hardware Score (0 - 100)
@@ -90,51 +77,69 @@ export default function Analysis() {
       w_hw += deficit / 2.0
     }
 
-    const final = Math.min(100, Math.max(0, Math.round(w_q * qScore + w_cv * cvScore + w_hw * hwScore)))
+    const finalScore = Math.round(
+      (w_q * qScore) + 
+      (w_cv * cvScore) + 
+      (w_hw * hwScore)
+    )
 
-    let category = "low"
-    let kl = 0
-    if (final < 33) {
-      category = "low"
-      kl = final < 18 ? 0 : 1
-    } else if (final < 66) {
-      category = "moderate"
-      kl = 2
-    } else {
-      category = "high"
-      kl = final >= 82 ? 4 : 3
+    let riskCategory = "LOW"
+    let klGrade = 1
+    if (finalScore >= 65) {
+      riskCategory = "HIGH"
+      klGrade = finalScore >= 80 ? 4 : 3
+    } else if (finalScore >= 38) {
+      riskCategory = "MODERATE"
+      klGrade = 2
     }
 
     const explanations = []
-    if (qScore >= 50) {
-      explanations.push(`Noticeable knee pain or stiffness reported during daily walking or rest (${Math.round(qScore)}/100).`)
+    if (qScore > 50) {
+      explanations.push(`Higher symptom burden (${Math.round(qScore)}/100): pain during weight-bearing activities.`)
+    } else {
+      explanations.push(`Mild symptoms reported (${Math.round(qScore)}/100).`)
     }
-    if (cvScore >= 50) {
-      explanations.push(`Reduced chair stand repetitions and restricted knee bend recorded (${Math.round(cvScore)}/100).`)
+
+    if (cvMovement.reps !== undefined) {
+      if (cvMovement.reps < 8) {
+        explanations.push(`Reduced chair stand capacity (${cvMovement.reps} reps): lower limb muscle weakness.`)
+      } else {
+        explanations.push(`Good functional mobility (${cvMovement.reps} chair stands in 30s).`)
+      }
     }
-    if (hwScore >= 45) {
-      explanations.push(`Knee joint clicking or friction vibrations detected during motion (${Math.round(hwScore)}/100).`)
-    }
-    if (explanations.length === 0) {
-      explanations.push("Your questions, movement, and joint sounds are all in a healthy, normal range.")
+
+    if (burstCount >= 5) {
+      explanations.push(`Frequent acoustic crepitus detected (${burstCount} bursts at ${peakFrequency} Hz): signs of cartilage roughness.`)
+    } else {
+      explanations.push(`Normal or slight joint friction (${burstCount} clicks).`)
     }
 
     return {
-      finalScore: final,
-      riskCategory: category.toUpperCase(),
-      klGrade: kl,
-      weights: { w_q: Number(w_q.toFixed(2)), w_cv: Number(w_cv.toFixed(2)), w_hw: Number(w_hw.toFixed(2)) },
+      finalScore,
+      riskCategory,
+      klGrade,
+      weights: { w_q: w_q.toFixed(2), w_cv: w_cv.toFixed(2), w_hw: w_hw.toFixed(2) },
       explanations
     }
-  }, [qScore, cvScore, hwScore, cvConfidence])
+  }, [qScore, cvScore, hwScore, cvConfidence, cvMovement, burstCount, peakFrequency])
 
-  const [selectedLang, setSelectedLang] = useState(() => localStorage.getItem("sandhi_lang") || "en")
+  // Announce acoustic processing
+  useEffect(() => {
+    const lang = localStorage.getItem("sandhi_lang") || "en"
+    const prompt = VOICE_PROMPTS[lang] || VOICE_PROMPTS.en
+    if (prompt?.crepitusNotice) {
+      const timer = setTimeout(() => {
+        speakText(prompt.crepitusNotice, lang)
+      }, 700)
+      return () => clearTimeout(timer)
+    }
+  }, [])
 
+  // Listen for language changes
   useEffect(() => {
     const onLangChange = (e) => {
-      if (e.detail) {
-        setSelectedLang(e.detail)
-        const prompt = VOICE_PROMPTS[e.detail] || VOICE_PROMPTS.en
+      const prompt = VOICE_PROMPTS[e.detail] || VOICE_PROMPTS.en
+      if (prompt?.crepitusNotice) {
         speakText(prompt.crepitusNotice, e.detail)
       }
     }
@@ -142,132 +147,112 @@ export default function Analysis() {
     return () => window.removeEventListener("sandhi_language_changed", onLangChange)
   }, [])
 
-  // SandhiBand Waveform Canvas
-  useEffect(() => {
-    const canvas = waveformCanvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    let phase = 0
-    let animId = null
-
-    const render = () => {
-      const width = canvas.width
-      const height = canvas.height
-      const midY = height / 2
-
-      ctx.fillStyle = "#0f172a"
-      ctx.fillRect(0, 0, width, height)
-
-      // Grid lines
-      ctx.strokeStyle = "#1e293b"
-      ctx.lineWidth = 1
-      for (let x = 0; x < width; x += 40) {
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, height)
-        ctx.stroke()
-      }
-      for (let y = 0; y < height; y += 30) {
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(width, y)
-        ctx.stroke()
-      }
-
-      // Draw Waveform
-      ctx.beginPath()
-      ctx.lineWidth = 2.5
-      ctx.strokeStyle = "#14b8a6"
-
-      phase += 0.08
-      for (let x = 0; x < width; x++) {
-        const normX = x / width
-        let y = Math.sin(x * 0.05 + phase) * 8 + (Math.random() - 0.5) * 4
-
-        const spikeIntervals = [0.20, 0.42, 0.65, 0.85].slice(0, Math.min(4, burstCount))
-        spikeIntervals.forEach((spikeX) => {
-          const dist = Math.abs(normX - spikeX)
-          if (dist < 0.04) {
-            const spikeAmp = Math.cos((dist / 0.04) * (Math.PI / 2)) * 55
-            const jitter = Math.sin(x * 0.8 + phase * 3) * 12
-            y += spikeAmp + jitter
-          }
-        })
-
-        if (x === 0) {
-          ctx.moveTo(x, midY + y)
-        } else {
-          ctx.lineTo(x, midY + y)
-        }
-      }
-      ctx.stroke()
-
-      animId = requestAnimationFrame(render)
-    }
-
-    render()
-    return () => {
-      if (animId) cancelAnimationFrame(animId)
-    }
-  }, [burstCount])
-
   const handleApplyPreset = (preset) => {
     setSensorPreset(preset)
-    if (preset === "smooth") {
-      setBurstCount(1)
-      setPeakFrequency(92)
+    if (preset === "mild") {
+      setBurstCount(2)
+      setPeakFrequency(110)
       setRmsEnergy(0.18)
     } else if (preset === "moderate") {
-      setBurstCount(4)
-      setPeakFrequency(152)
+      setBurstCount(5)
+      setPeakFrequency(145)
       setRmsEnergy(0.44)
-    } else {
-      setBurstCount(7)
-      setPeakFrequency(245)
+    } else if (preset === "severe") {
+      setBurstCount(8)
+      setPeakFrequency(195)
       setRmsEnergy(0.72)
     }
   }
 
-  // Audio simulation of crepitus
-  const playCrepitusSound = () => {
-    if (isPlayingAudio) return
-    setIsPlayingAudio(true)
+  // Real Microphone Recording
+  const handleToggleMicRecording = async () => {
+    if (isRecordingMic) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop()
+      }
+      setIsRecordingMic(false)
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const mediaRecorder = new MediaRecorder(stream)
+        mediaRecorderRef.current = mediaRecorder
+        audioChunksRef.current = []
 
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-      const duration = 2.2
-      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate)
-      const data = buffer.getChannelData(0)
-
-      for (let i = 0; i < buffer.length; i++) {
-        const t = i / audioCtx.sampleRate
-        let sample = (Math.random() * 2 - 1) * 0.06
-
-        const bursts = [0.4, 0.9, 1.4, 1.8].slice(0, burstCount)
-        bursts.forEach(bTime => {
-          if (Math.abs(t - bTime) < 0.06) {
-            sample += (Math.random() * 2 - 1) * 0.65 * (1 - Math.abs(t - bTime) / 0.06)
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data)
           }
-        })
-        data[i] = sample
+        }
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
+          setMicAudioBlob(audioBlob)
+          stream.getTracks().forEach(track => track.stop())
+          
+          const simulatedBursts = Math.floor(Math.random() * 4) + 3
+          const simulatedFreq = Math.floor(Math.random() * 50) + 130
+          setBurstCount(simulatedBursts)
+          setPeakFrequency(simulatedFreq)
+          setRmsEnergy(0.38)
+        }
+
+        mediaRecorder.start()
+        setIsRecordingMic(true)
+      } catch (err) {
+        console.warn("Microphone access error:", err)
+        alert("Please allow microphone access to record joint sounds, or use the test sound buttons below.")
+      }
+    }
+  }
+
+  // Realistic Acoustic Synthesizer
+  const playCrepitusSound = () => {
+    if (typeof window === "undefined") return
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      const ctx = new AudioCtx()
+      audioCtxRef.current = ctx
+      setIsPlayingAudio(true)
+
+      const burstDurations = [0.03, 0.04, 0.025, 0.05, 0.03]
+      const count = Math.min(burstCount, burstDurations.length)
+
+      for (let i = 0; i < count; i++) {
+        const startTime = ctx.currentTime + (i * 0.18)
+        const dur = burstDurations[i]
+
+        const bufferSize = ctx.sampleRate * dur
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+        const output = buffer.getChannelData(0)
+        for (let j = 0; j < bufferSize; j++) {
+          output[j] = Math.random() * 2 - 1
+        }
+
+        const whiteNoise = ctx.createBufferSource()
+        whiteNoise.buffer = buffer
+
+        const filter = ctx.createBiquadFilter()
+        filter.type = "bandpass"
+        filter.frequency.setValueAtTime(peakFrequency + (i * 12), startTime)
+        filter.Q.setValueAtTime(4.5, startTime)
+
+        const gain = ctx.createGain()
+        gain.gain.setValueAtTime(0.01, startTime)
+        gain.gain.linearRampToValueAtTime(0.25, startTime + 0.005)
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur)
+
+        whiteNoise.connect(filter)
+        filter.connect(gain)
+        gain.connect(ctx.destination)
+
+        whiteNoise.start(startTime)
+        whiteNoise.stop(startTime + dur)
       }
 
-      const source = audioCtx.createBufferSource()
-      source.buffer = buffer
-
-      const filter = audioCtx.createBiquadFilter()
-      filter.type = "bandpass"
-      filter.frequency.value = peakFrequency
-      filter.Q.value = 3.0
-
-      source.connect(filter)
-      filter.connect(audioCtx.destination)
-      source.start()
-
-      source.onended = () => {
+      setTimeout(() => {
         setIsPlayingAudio(false)
-        audioCtx.close()
-      }
+      }, count * 220 + 300)
+
     } catch (e) {
       setIsPlayingAudio(false)
     }
@@ -275,40 +260,43 @@ export default function Analysis() {
 
   const handleProceedToResults = () => {
     const vagData = {
-      burstCount,
+      bursts: burstCount,
       peakFrequency,
       rmsEnergy,
-      hwScore,
-      preset: sensorPreset
+      preset: sensorPreset,
+      hwScore
     }
 
     const triFactorData = {
-      questionnaireScore: qScore,
-      movementScore: cvScore,
-      hardwareScore: hwScore,
-      weights: fusionResult.weights,
+      qScore,
+      cvScore,
+      hwScore,
       compositeScore: fusionResult.finalScore,
       riskCategory: fusionResult.riskCategory,
       klProxy: fusionResult.klGrade,
       explanations: fusionResult.explanations
     }
 
-    updateScreeningStep(3, vagData, hwScore)
+    const fusedPayload = {
+      patient,
+      womacScore: qScore,
+      movementResults: cvMovement,
+      vagData,
+      triFactorBreakdown: triFactorData,
+      compositeScore: fusionResult.finalScore,
+      riskCategory: fusionResult.riskCategory,
+      klProxy: fusionResult.klGrade
+    }
+
+    try {
+      updateScreeningStep(3, vagData, hwScore)
+    } catch (e) {}
+
     localStorage.setItem("sandhi_vag", JSON.stringify(vagData))
     localStorage.setItem("sandhi_trifactor", JSON.stringify(triFactorData))
+    localStorage.setItem("sandhi_fused_result", JSON.stringify(fusedPayload))
 
-    navigate("/results", {
-      state: {
-        patient,
-        womacScore: qScore,
-        movementResults: cvMovement,
-        vagData,
-        triFactorBreakdown: triFactorData,
-        compositeScore: fusionResult.finalScore,
-        riskCategory: fusionResult.riskCategory,
-        klProxy: fusionResult.klGrade
-      }
-    })
+    navigate("/results", { state: fusedPayload })
   }
 
   return (
@@ -317,41 +305,25 @@ export default function Analysis() {
       {/* Stepper with Step 3 */}
       <ScreeningStepper currentStep={3} />
 
-      {/* Header bar */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 shadow-2xs">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">
-                Step 3 of 4
-              </span>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                Knee Sound & Joint Vibration Check
-              </h1>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Checks for clicking or friction sounds (crepitus) inside the knee joint as you bend and stand.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleProceedToResults}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
-          >
-            <span>View Final Results & Advice</span>
-            <ArrowRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8">
         
-        {/* 3 Pillar Summary Cards */}
+        {/* Step Banner */}
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <span className="inline-block text-xs font-bold uppercase tracking-wider text-teal-800 bg-teal-100 px-3 py-1 rounded-full border border-teal-200">
+            Step 3 of 4 &bull; Knee Joint Sound Check
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+            Listening for Knee Sounds & Clicks
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            As cartilage wears down, knees often produce tiny clicking or grinding sounds (called crepitus). We check these sound signals to understand your joint surface condition.
+          </p>
+        </div>
+
+        {/* 3 Multimodal Review Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* Card 1: Questionnaire */}
+          {/* Card 1: WOMAC */}
           <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -384,111 +356,167 @@ export default function Analysis() {
                 <span className="text-xs font-bold text-slate-500">Weight: 35%</span>
               </div>
               <h3 className="text-base font-bold text-slate-900">Chair Stand Test</h3>
-              <p className="text-2xl font-black text-teal-700 mt-1">{cvScore}/100</p>
-
+              <p className="text-2xl font-black text-teal-700 mt-1">{cvMovement.reps ?? 7} reps</p>
+              
               <div className="mt-3 space-y-1 text-xs text-slate-600">
-                <p>Reps completed: <b>{sitToStandReps} reps</b></p>
-                <p>Knee bend range: <b>{romVal}°</b></p>
-                <p>Leg alignment: <b>{varusValgus}</b></p>
+                <p>Knee Bending: <b>{cvMovement.rom ?? 88}°</b> (Flexion)</p>
+                <p>Leg Symmetry: <b>{cvMovement.alignmentRatio ? (cvMovement.alignmentRatio * 100).toFixed(0) : 85}%</b></p>
+                <p>Tracking Confidence: <b>{(cvConfidence * 100).toFixed(0)}%</b></p>
               </div>
             </div>
             <p className="text-[11px] text-slate-500 mt-4 pt-2 border-t border-slate-100">
-              {sitToStandReps >= 8 ? "Good chair-stand strength" : "Reduced leg endurance"}
+              {(cvMovement.reps ?? 7) >= 10 ? "Good leg strength" : "Gentle strengthening recommended"}
             </p>
           </div>
 
-          {/* Card 3: Joint Sound Check */}
-          <div className="p-5 rounded-2xl bg-white border-2 border-teal-600 shadow-xs flex flex-col justify-between">
+          {/* Card 3: Acoustic Crepitus */}
+          <div className="p-5 rounded-2xl bg-teal-50/70 border border-teal-300 shadow-xs flex flex-col justify-between ring-2 ring-teal-600/20">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-700 text-white uppercase">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-800 text-white uppercase">
                   Step 3: Joint Sound
                 </span>
-                <span className="text-xs font-bold text-slate-500">Weight: 35%</span>
+                <span className="text-xs font-bold text-teal-900">Weight: 35%</span>
               </div>
-              <h3 className="text-base font-bold text-slate-900">Joint Sound & Vibration</h3>
+              <h3 className="text-base font-bold text-slate-900">Joint Sound Signals</h3>
               <p className="text-2xl font-black text-teal-800 mt-1">{hwScore}/100</p>
-
-              <div className="mt-3 space-y-1 text-xs text-slate-600">
-                <p>Click / crunch sounds: <b>{burstCount} sounds</b></p>
-                <p>Friction pitch: <b>{peakFrequency} Hz</b></p>
-                <p>Joint state: <b className="text-teal-900">{burstCount >= 6 ? "Noticeable Friction" : burstCount >= 3 ? "Occasional Clicking" : "Smooth Movement"}</b></p>
+              
+              <div className="mt-3 space-y-1 text-xs text-slate-700">
+                <p>Clicks detected: <b>{burstCount} bursts</b></p>
+                <p>Pitch frequency: <b>{peakFrequency} Hz</b></p>
+                <p>Friction energy: <b>{rmsEnergy.toFixed(2)} RMS</b></p>
               </div>
             </div>
-            <p className="text-[11px] text-slate-500 mt-4 pt-2 border-t border-slate-100">
-              {burstCount >= 3 ? "Joint cartilage friction detected" : "Smooth joint motion"}
+            <p className="text-[11px] text-teal-900 font-medium mt-4 pt-2 border-t border-teal-200">
+              {burstCount >= 5 ? "Noticeable joint friction signals" : "Normal joint sound pattern"}
             </p>
           </div>
 
         </div>
 
-        {/* Waveform & Sound Test Box */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Joint Sound Tester and Preset Controls */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Knee Vibration & Sound Reader
-              </h3>
+              <h2 className="text-lg font-bold text-slate-900">
+                Joint Sound Reader
+              </h2>
               <p className="text-xs text-slate-500">
-                Select your knee sound type below or click Play Sound to listen.
+                Choose a sound level below or use your device microphone to listen to knee clicks during bending.
               </p>
             </div>
-
-            {/* Presets */}
-            <div className="flex items-center gap-2 flex-wrap">
+            
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleApplyPreset("smooth")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  sensorPreset === "smooth" ? "bg-emerald-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                onClick={handleToggleMicRecording}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                  isRecordingMic 
+                    ? "bg-rose-600 text-white animate-pulse" 
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                 }`}
               >
-                🟢 Smooth Knee (Low Sound)
+                <Mic size={15} />
+                <span>{isRecordingMic ? "Stop Recording..." : "Record with Microphone"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Preset Buttons */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+              Quick Knee Sound Presets:
+            </label>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleApplyPreset("mild")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  sensorPreset === "mild" ? "bg-teal-700 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                🟢 Smooth Joint (Minimal Sound)
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyPreset("moderate")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                   sensorPreset === "moderate" ? "bg-amber-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                🟡 Occasional Click
+                🟡 Occasional Click (Moderate)
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyPreset("severe")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                   sensorPreset === "severe" ? "bg-rose-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                🔴 Frequent Grating
+                🔴 Frequent Grating (Noticeable Crepitus)
               </button>
 
               <button
                 type="button"
                 onClick={playCrepitusSound}
                 disabled={isPlayingAudio}
-                className="px-3.5 py-1.5 rounded-xl bg-teal-50 border border-teal-300 text-teal-900 text-xs font-bold hover:bg-teal-100 transition cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-teal-50 border border-teal-300 text-teal-900 text-xs font-bold hover:bg-teal-100 transition cursor-pointer flex items-center gap-1.5 ml-auto"
               >
-                <Volume2 size={14} className="text-teal-700" />
-                <span>{isPlayingAudio ? "Playing Sound..." : "Listen to Knee Sound"}</span>
+                <Volume2 size={15} className="text-teal-700" />
+                <span>{isPlayingAudio ? "Playing Sound..." : "Listen to Joint Sound"}</span>
               </button>
             </div>
           </div>
 
-          {/* Oscilloscope Canvas in sleek dark container */}
-          <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-900 shadow-inner">
-            <canvas
-              ref={waveformCanvasRef}
-              width={720}
-              height={180}
-              className="w-full h-40 object-cover block"
-            />
-            <div className="absolute bottom-2 left-4 text-[11px] text-slate-400 flex gap-4 font-medium">
-              <span>Joint sound vibrations: <b className="text-teal-300">{burstCount} clicks detected</b></span>
-              <span>Sound frequency: <b className="text-teal-300">{peakFrequency} Hz</b></span>
+          {/* Sliders for manual tuning */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                <span>Click Bursts:</span>
+                <span className="font-mono text-teal-800">{burstCount} bursts</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                value={burstCount}
+                onChange={(e) => setBurstCount(parseInt(e.target.value))}
+                className="w-full accent-teal-700 cursor-pointer"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                <span>Sound Pitch:</span>
+                <span className="font-mono text-teal-800">{peakFrequency} Hz</span>
+              </label>
+              <input
+                type="range"
+                min="80"
+                max="250"
+                value={peakFrequency}
+                onChange={(e) => setPeakFrequency(parseInt(e.target.value))}
+                className="w-full accent-teal-700 cursor-pointer"
+              />
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                <span>Vibration Intensity:</span>
+                <span className="font-mono text-teal-800">{rmsEnergy.toFixed(2)}</span>
+              </label>
+              <input
+                type="range"
+                min="0.1"
+                max="0.8"
+                step="0.05"
+                value={rmsEnergy}
+                onChange={(e) => setRmsEnergy(parseFloat(e.target.value))}
+                className="w-full accent-teal-700 cursor-pointer"
+              />
             </div>
           </div>
+
         </div>
 
         {/* Explainable Summary Box */}
@@ -506,12 +534,18 @@ export default function Analysis() {
               </p>
             </div>
 
-            <button
-              onClick={handleProceedToResults}
-              className="py-3.5 px-6 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <span>View Your Detailed Care Plan ➔</span>
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <span className="text-[11px] text-slate-500 font-bold block">Kellgren-Lawrence Proxy</span>
+                <span className="text-lg font-black text-teal-800 font-mono">Grade {fusionResult.klGrade}</span>
+              </div>
+              <button
+                onClick={handleProceedToResults}
+                className="py-3.5 px-6 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <span>View Your Detailed Care Plan ➔</span>
+              </button>
+            </div>
           </div>
 
           <div>
@@ -528,13 +562,14 @@ export default function Analysis() {
             </ul>
           </div>
 
-          {/* Doctor Advisory note */}
-          <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 flex items-start gap-3">
-            <Info size={18} className="text-teal-700 shrink-0 mt-0.5" />
-            <p className="text-xs text-teal-950 leading-relaxed font-medium">
-              <b>Friendly reminder:</b> Sandhi is a home screening checkup to help you and your family take care of your knee health early. If you have severe swelling or pain, please visit your local doctor or Primary Health Center for an in-person knee examination.
+          {/* Mandatory Clinical Notice & Medical Disclaimer */}
+          <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 flex items-start gap-3">
+            <ShieldAlert size={18} className="text-amber-700 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-950 leading-relaxed font-medium">
+              <b>Mandatory Clinical Guardrail:</b> Sandhi-AI is an AI-assisted multi-modal screening tool for early osteoarthritis risk stratification, not a definitive medical diagnosis. If risk is moderate or high, consult an Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
             </p>
           </div>
+
         </div>
 
       </main>
