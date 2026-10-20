@@ -9,6 +9,7 @@ import Assessment from "./pages/Assessment"
 import MovementAnalysis from "./pages/MovementAnalysis"
 import Analysis from "./pages/Analysis"
 import Results from "./pages/Results"
+import XrayAnalysis from "./pages/XrayAnalysis"
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/movement" element={<MovementAnalysis />} />
         <Route path="/analysis" element={<Analysis />} />
         <Route path="/results" element={<Results />} />
+        <Route path="/xray" element={<XrayAnalysis />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/registration" element={<Registration />} />
         <Route path="*" element={<Navigate to="/" replace />} />

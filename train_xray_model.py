@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from app.cv_engine.pytorch_model import KneeOAResNet
+from app.cv_engine.pytorch_model import KneeOAResNet, KneeOADenseNet
 
 MODELS_DIR = Path(__file__).resolve().parent / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -91,7 +91,12 @@ def train_model(args):
         print("Please ensure the Kaggle dataset is downloaded to ./dataset via `python download_kaggle_dataset.py`")
         return
 
-    model = KneeOAResNet(num_classes=5, pretrained=True).to(device)
+    if getattr(args, "arch", "densenet121") == "densenet121":
+        model = KneeOADenseNet(num_classes=5, pretrained=True).to(device)
+        print("[ARCHITECTURE] Initialized DenseNet-121 with Dense Feature Reuse for Radiography")
+    else:
+        model = KneeOAResNet(num_classes=5, pretrained=True).to(device)
+        print("[ARCHITECTURE] Initialized ResNet-18 Backbone")
     criterion = OrdinalClassificationLoss(num_classes=5)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
@@ -165,6 +170,7 @@ def train_model(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Knee OA Kellgren-Lawrence Classifier")
     parser.add_argument("--data-dir", type=str, default="./dataset", help="Path to extracted Kaggle dataset")
+    parser.add_argument("--arch", type=str, choices=["densenet121", "resnet18"], default="densenet121", help="Backbone model architecture")
     parser.add_argument("--epochs", type=int, default=15, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")

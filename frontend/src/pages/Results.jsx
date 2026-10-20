@@ -468,14 +468,23 @@ export default function Results() {
         </div>
 
         {/* Mandatory Clinical Screening Guardrail */}
-        <div className="rounded-2xl bg-amber-50/90 border border-amber-200 p-4 text-amber-950 flex items-start gap-3 shadow-2xs">
-          <ShieldAlert size={20} className="text-amber-700 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">Mandatory Clinical Screening Notice</p>
-            <p className="text-xs text-amber-900 mt-0.5 leading-relaxed">
-              Sandhi-AI is an artificial intelligence-assisted triage and early knee osteoarthritis risk screening tool, not a definitive clinical diagnosis. If risk is moderate or high, consult an Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
-            </p>
+        <div className="rounded-2xl bg-amber-50/90 border border-amber-200 p-4 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <ShieldAlert size={20} className="text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">Mandatory Clinical Screening Notice</p>
+              <p className="text-xs text-amber-900 mt-0.5 leading-relaxed">
+                Sandhi-AI is an artificial intelligence-assisted triage and early knee osteoarthritis risk screening tool, not a definitive clinical diagnosis. If risk is moderate or high, consult an Orthopedic Specialist or Medical Officer for clinical examination and confirmatory radiographic imaging (X-ray).
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate("/xray")}
+            className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-black shadow-xs transition cursor-pointer"
+          >
+            <span>🦴 3D Knee &amp; X-Ray AI</span>
+          </button>
         </div>
 
         {/* Action Buttons */}
@@ -486,6 +495,12 @@ export default function Results() {
               className="rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
             >
               ← Back to Knee Hub
+            </button>
+            <button
+              onClick={() => navigate("/xray")}
+              className="rounded-xl border border-teal-300 bg-teal-50 px-5 py-2.5 text-xs font-extrabold text-teal-900 hover:bg-teal-100 transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+            >
+              <span>🦴 3D Knee Twin &amp; X-Ray</span>
             </button>
             <button
               onClick={() => {

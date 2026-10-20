@@ -133,8 +133,8 @@ export default function Navbar({ onPortalChange }) {
           <button
             type="button"
             onClick={() => { setPortalMode("patient"); navigate("/screening") }}
-            className={`flex items-center gap-1.5 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition cursor-pointer ${
-              isPatientFlow && location.pathname !== "/dashboard"
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition cursor-pointer ${
+              isPatientFlow && location.pathname !== "/dashboard" && location.pathname !== "/xray"
                 ? "bg-white text-teal-900 shadow-xs border border-slate-200/80 font-bold"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
             }`}
@@ -145,16 +145,30 @@ export default function Navbar({ onPortalChange }) {
 
           <button
             type="button"
+            onClick={() => navigate("/xray")}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition cursor-pointer ${
+              location.pathname === "/xray"
+                ? "bg-teal-700 text-white shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+            }`}
+          >
+            <span className="text-sm">🦴</span>
+            <span className="hidden sm:inline">3D Knee &amp; X-Ray</span>
+            <span className="sm:hidden">3D X-Ray</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handlePortalSwitch("doctor")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition cursor-pointer ${
               location.pathname === "/dashboard"
-                ? "bg-teal-700 text-white shadow-xs"
+                ? "bg-teal-700 text-white shadow-xs font-bold"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
             }`}
           >
             <span className="text-sm">⚕</span>
-            <span className="hidden sm:inline">Doctor / Clinic</span>
-            <span className="sm:hidden">Doctor</span>
+            <span className="hidden sm:inline">Doctor</span>
+            <span className="sm:hidden">MD</span>
           </button>
         </nav>
 

@@ -23,6 +23,7 @@ def setup_dataset():
 
     # Check if kaggle package is available
     try:
+        # pyrefly: ignore [missing-import]
         import kaggle
         print("\nAttempting automatic download via Kaggle API...")
         kaggle.api.authenticate()

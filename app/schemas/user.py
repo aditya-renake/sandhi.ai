@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 class UserBase(BaseModel):
     username: str
     full_name: str
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     role: str = "asha_worker"
     state: str = "Assam"
     district: str = "Kamrup Metropolitan"

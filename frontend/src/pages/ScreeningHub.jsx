@@ -341,6 +341,36 @@ export default function ScreeningHub() {
           </div>
         </section>
 
+        {/* 3D Knee Twin & Radiographic AI Diagnostic Banner */}
+        <section className="bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950 border border-slate-800 rounded-2xl p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-300 shrink-0">
+              <span className="text-2xl">🦴</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-white">
+                  3D Knee Model &amp; Radiograph AI
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-teal-400/20 text-teal-300 text-[10px] font-bold font-mono border border-teal-400/30">
+                  NEW
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                Test calibrated X-ray samples (KL 0 to 4) or upload custom radiographs to view an interactive 3D knee model in AP, Lateral, Posterior, and Skyline views.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/xray")}
+            className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs shadow-sm transition cursor-pointer"
+          >
+            <span>Launch 3D X-Ray Viewer</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </section>
+
         {/* Past Screenings Table if any */}
         {pastScreenings.length > 0 && (
           <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
