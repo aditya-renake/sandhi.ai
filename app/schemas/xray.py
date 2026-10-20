@@ -24,3 +24,12 @@ class XrayAnalysisResponse(BaseModel):
     radiological_findings: List[str]
     structural_risk_contribution: float # 0 - 100
     surgical_consultation_indicated: bool
+    
+    # 4-Stage Clinical Deep Learning Pipeline Artifacts
+    stage1_roi_box: Optional[List[int]] = None # [ymin, xmin, ymax, xmax]
+    stage1_roi_image_base64: Optional[str] = None
+    stage2_segmentation_overlay_base64: Optional[str] = None
+    stage3_distance_map_base64: Optional[str] = None
+    submillimeter_jsw_profile: Optional[List[float]] = None
+    varus_valgus_tilt_deg: Optional[float] = None
+    pipeline_stages_completed: Optional[List[str]] = None
