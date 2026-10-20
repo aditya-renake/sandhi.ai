@@ -24,6 +24,10 @@ Thumbs.db
 # Uploads & Reports (ephemeral)
 uploads/
 reports/
+models/
+*.pth
+*.pt
+*.onnx
 
 # IDE
 .idea/

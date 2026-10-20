@@ -175,6 +175,50 @@ class KneeBoneUNet(nn.Module if TORCH_AVAILABLE else object):
         return torch.sigmoid(logits)
 
 
+class HFClassifier(nn.Module if TORCH_AVAILABLE else object):
+    """Classification head matching Hugging Face KneeVision DenseNet-121 architecture."""
+    def __init__(self, in_features: int = 1024, num_classes: int = 5):
+        if not TORCH_AVAILABLE:
+            return
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Linear(in_features, 1024),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(1024, num_classes)
+        )
+
+    def forward(self, x: "torch.Tensor") -> "torch.Tensor":
+        x = self.net[0](x)
+        x = torch.flatten(x, 1)
+        x = self.net[1](x)
+        x = self.net[2](x)
+        x = self.net[3](x)
+        x = self.net[4](x)
+        x = self.net[5](x)
+        return x
+
+
+class KneeVisionHFModel(nn.Module if TORCH_AVAILABLE else object):
+    """
+    Hugging Face Pre-Trained Knee OA DenseNet-121 Classifier (Darshan13/KneeVision-models).
+    Pre-trained and fine-tuned on the Osteoarthritis Initiative (OAI) radiograph dataset (QWK 0.7751).
+    """
+    def __init__(self, num_classes: int = 5):
+        if not TORCH_AVAILABLE:
+            return
+        super().__init__()
+        self.backbone = densenet121(weights=None)
+        self.classifier = HFClassifier(in_features=1024, num_classes=num_classes)
+
+    def forward(self, x: "torch.Tensor") -> "torch.Tensor":
+        feat = self.backbone.features(x)
+        out = self.classifier(feat)
+        return out
+
+
 class PyTorchGradCAM:
     """Computes exact Gradient-weighted Class Activation Mapping (Grad-CAM) from PyTorch feature maps."""
     def __init__(self, model: "nn.Module", target_layer: Optional["nn.Module"] = None):
@@ -267,6 +311,12 @@ class DeepLearningKneePredictor:
         if not TORCH_AVAILABLE:
             return
         
+        # Check default models directory if not explicitly provided
+        if weights_path is None:
+            default_weights = Path(__file__).resolve().parents[2] / "models" / "knee_kl_model.pth"
+            if default_weights.exists():
+                weights_path = default_weights
+
         if self.arch == "densenet121":
             self.model = KneeOADenseNet(num_classes=5, pretrained=True)
             target_layer = self.model.features.denseblock4 if hasattr(self.model, "features") else None
@@ -278,9 +328,17 @@ class DeepLearningKneePredictor:
         if weights_path and weights_path.exists():
             try:
                 state_dict = torch.load(str(weights_path), map_location=self.device)
-                self.model.load_state_dict(state_dict)
-                self.has_custom_weights = True
-                print(f"[AI] Loaded trained Knee OA weights from: {weights_path}")
+                # Detect if weights are from Hugging Face KneeVision (Darshan13/KneeVision-models)
+                if any(k.startswith("backbone.features") for k in state_dict.keys()):
+                    self.model = KneeVisionHFModel(num_classes=5)
+                    self.model.load_state_dict(state_dict, strict=False)
+                    target_layer = self.model.backbone.features.denseblock4
+                    self.has_custom_weights = True
+                    print(f"[AI] Successfully connected Hugging Face Pre-Trained Knee OA Model from: {weights_path}")
+                else:
+                    self.model.load_state_dict(state_dict)
+                    self.has_custom_weights = True
+                    print(f"[AI] Loaded trained Knee OA weights from: {weights_path}")
             except Exception as e:
                 print(f"[AI] Notice loading custom weights: {e}. Using initialized {self.arch} model.")
         
