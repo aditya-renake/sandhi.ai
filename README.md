@@ -134,6 +134,33 @@ Frontend: http://localhost:5173
 
 ---
 
+## 4-Stage Knee X-Ray AI Diagnostics Pipeline
+
+```
+Raw Knee Radiograph
+      │
+      ▼
+[Stage 1: YOLOv8-Nano] ──────► Fine-tuned model (`models/knee_joint_yolov8n.pt`) crops exact Femoral-Tibial Joint ROI
+      │
+      ▼
+[Stage 2: U-Net Segmentation] ────► Segments Distal Femur (Cyan) & Proximal Tibia (Emerald) bone contours
+      │
+      ▼
+[Stage 3: OpenCV Distance Transform] ──► Computes sub-millimeter Medial & Lateral Joint Space Width (mm)
+      │
+      ▼
+[Stage 4: DenseNet-121 + Grad-CAM] ──► Kellgren-Lawrence Grade (KL 0-4) + Visual Saliency Explainability
+```
+
+### Fine-Tuning YOLOv8 Nano Joint Detector:
+```bash
+# Fine-tune YOLOv8 Nano on knee joint radiograph dataset:
+python3 train_yolo_joint_detector.py --epochs 15 --batch-size 16 --imgsz 512
+```
+The resulting weights are saved to `models/knee_joint_yolov8n.pt` and automatically loaded by the pipeline. If run in serverless environments, it falls back to an anatomical scanning anchor without crashing.
+
+---
+
 ## Supported NER States & Languages
 
 **States**: Assam, Arunachal Pradesh, Manipur, Meghalaya, Mizoram, Nagaland, Sikkim, Tripura  

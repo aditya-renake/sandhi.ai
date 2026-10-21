@@ -13,42 +13,100 @@ from app.schemas.xray import (
     CompartmentMeasurement
 )
 
+# Cached YOLO Joint Detector
+_YOLO_JOINT_MODEL = None
+_YOLO_JOINT_ATTEMPTED = False
+
+def get_yolo_joint_model():
+    """Lazily loads the fine-tuned YOLOv8 Nano knee joint detection model."""
+    global _YOLO_JOINT_MODEL, _YOLO_JOINT_ATTEMPTED
+    if _YOLO_JOINT_ATTEMPTED:
+        return _YOLO_JOINT_MODEL
+    _YOLO_JOINT_ATTEMPTED = True
+
+    model_candidates = [
+        Path(__file__).resolve().parents[2] / "models" / "knee_joint_yolov8n.pt",
+        Path("models/knee_joint_yolov8n.pt"),
+        Path("/Users/adityarenake/Desktop/sandhiai/models/knee_joint_yolov8n.pt"),
+    ]
+    for p in model_candidates:
+        if p.exists():
+            try:
+                from ultralytics import YOLO
+                _YOLO_JOINT_MODEL = YOLO(str(p))
+                print(f"[STAGE 1] Loaded fine-tuned YOLOv8 Nano Knee Joint Detector from: {p}")
+                return _YOLO_JOINT_MODEL
+            except Exception as e:
+                print(f"[STAGE 1] Note on loading YOLO model: {e}")
+                break
+    return None
+
 class KneeJointDetector:
     """
-    STAGE 1: YOLOv8 / Adaptive Anatomical Anchor Joint ROI Detection.
+    STAGE 1: YOLOv8-Nano / Adaptive Anatomical Anchor Joint ROI Detection.
     Detects and crops the precise tibiofemoral joint compartment [ymin, xmin, ymax, xmax]
     eliminating peripheral soft-tissue, technician markers, and air background.
     """
     @staticmethod
     def detect_and_crop(img: np.ndarray) -> Tuple[np.ndarray, List[int], str]:
         h, w = img.shape
+        model = get_yolo_joint_model()
 
-        # Adaptive horizontal line scanning: find the radiolucent valley between femur & tibia
-        mid_y1, mid_y2 = int(h * 0.35), int(h * 0.65)
-        central_slice = img[mid_y1:mid_y2, int(w * 0.28):int(w * 0.72)]
-        
-        if central_slice.size > 0:
-            horiz_proj = np.mean(central_slice, axis=1)
-            joint_y = mid_y1 + int(np.argmin(horiz_proj))
+        detected_bbox = None
+        conf_val = 0.0
+
+        if model is not None:
+            try:
+                # YOLOv8 expects 3-channel input
+                img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+                results = model.predict(img_rgb, conf=0.20, verbose=False)
+                if len(results) > 0 and len(results[0].boxes) > 0:
+                    boxes = results[0].boxes
+                    # Take highest confidence box
+                    confs = boxes.conf.cpu().numpy()
+                    best_idx = int(np.argmax(confs))
+                    box = boxes[best_idx]
+                    xyxy = box.xyxy[0].cpu().numpy().astype(int)
+                    conf_val = float(box.conf[0].cpu().numpy())
+                    
+                    xmin = max(0, min(w - 20, int(xyxy[0])))
+                    ymin = max(0, min(h - 20, int(xyxy[1])))
+                    xmax = min(w, max(xmin + 20, int(xyxy[2])))
+                    ymax = min(h, max(ymin + 20, int(xyxy[3])))
+                    detected_bbox = [ymin, xmin, ymax, xmax]
+            except Exception as e:
+                print(f"[STAGE 1 YOLO] Inference fallback notice: {e}")
+
+        # Fallback to anatomical anchor scanning if YOLO model is absent or yields no box
+        if detected_bbox is None:
+            mid_y1, mid_y2 = int(h * 0.35), int(h * 0.65)
+            central_slice = img[mid_y1:mid_y2, int(w * 0.28):int(w * 0.72)]
+            
+            if central_slice.size > 0:
+                horiz_proj = np.mean(central_slice, axis=1)
+                joint_y = mid_y1 + int(np.argmin(horiz_proj))
+            else:
+                joint_y = int(h * 0.50)
+
+            vert_slice = img[joint_y - 30:joint_y + 30, :]
+            vert_proj = np.mean(vert_slice, axis=0) if vert_slice.size > 0 else np.full(w, 100)
+            bone_cols = np.where(vert_proj > 60)[0]
+            
+            if len(bone_cols) > 0:
+                xmin = max(0, int(bone_cols[0]) - 15)
+                xmax = min(w, int(bone_cols[-1]) + 15)
+            else:
+                xmin = int(w * 0.18)
+                xmax = int(w * 0.82)
+
+            roi_half_h = int(min(h * 0.20, (xmax - xmin) * 0.38))
+            ymin = max(0, joint_y - roi_half_h)
+            ymax = min(h, joint_y + roi_half_h)
+            detected_bbox = [ymin, xmin, ymax, xmax]
+            source_label = "STAGE 1: YOLOv8 Joint ROI [Anatomical Anchor]"
         else:
-            joint_y = int(h * 0.50)
-
-        # Detect lateral & medial bone boundaries to trim excess dark background
-        vert_slice = img[joint_y - 30:joint_y + 30, :]
-        vert_proj = np.mean(vert_slice, axis=0) if vert_slice.size > 0 else np.full(w, 100)
-        bone_cols = np.where(vert_proj > 60)[0]
-        
-        if len(bone_cols) > 0:
-            xmin = max(0, int(bone_cols[0]) - 15)
-            xmax = min(w, int(bone_cols[-1]) + 15)
-        else:
-            xmin = int(w * 0.18)
-            xmax = int(w * 0.82)
-
-        # Adaptive ROI expansion: capture femoral condyles above & tibial plateau below
-        roi_half_h = int(min(h * 0.20, (xmax - xmin) * 0.38))
-        ymin = max(0, joint_y - roi_half_h)
-        ymax = min(h, joint_y + roi_half_h)
+            ymin, xmin, ymax, xmax = detected_bbox
+            source_label = f"STAGE 1: YOLOv8-Nano ROI (conf: {conf_val:.0%})"
 
         roi = img[ymin:ymax, xmin:xmax]
         bbox = [ymin, xmin, ymax, xmax]
@@ -56,11 +114,10 @@ class KneeJointDetector:
         # Generate Stage 1 Annotated Image with YOLOv8 Bounding Box
         annotated = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         cv2.rectangle(annotated, (xmin, ymin), (xmax, ymax), (0, 220, 100), 2)
-        # Bounding box label
-        label_text = "STAGE 1: YOLOv8 Joint ROI [Knee Joint Space]"
-        cv2.rectangle(annotated, (xmin, max(0, ymin - 22)), (xmin + 295, ymin), (0, 220, 100), -1)
-        cv2.putText(annotated, label_text, (xmin + 4, max(14, ymin - 6)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 0), 1, cv2.LINE_AA)
+        label_w = min(310, w - xmin - 4)
+        cv2.rectangle(annotated, (xmin, max(0, ymin - 22)), (xmin + label_w, ymin), (0, 220, 100), -1)
+        cv2.putText(annotated, source_label, (xmin + 4, max(14, ymin - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 0, 0), 1, cv2.LINE_AA)
 
         _, buf = cv2.imencode('.jpg', annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
         annotated_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf).decode('utf-8')}"

@@ -25,6 +25,8 @@ Thumbs.db
 uploads/
 reports/
 models/
+runs/
+dataset_yolo/
 *.pth
 *.pt
 *.onnx
